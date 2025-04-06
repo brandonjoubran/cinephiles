@@ -1,9 +1,14 @@
+from flask import Flask, render_template
+from collections import defaultdict
+import statistics
 import requests
 from bs4 import BeautifulSoup
 import time
 import re
-from collections import defaultdict
-import statistics
+
+app = Flask(__name__)
+
+# Include all your existing functions here (slugify, extract_full_date, parse_rating, count_review_words, get_all_user_logs)
 
 def slugify(title):
     return title.lower().replace(' ', '-').replace(':', '').replace("'", "").replace(",", "").replace(".", "").replace("&", "and")
@@ -34,7 +39,7 @@ def count_review_words(url):
         pass
     return 0
 
-def get_all_user_logs(username, movie_title, max_pages=3):
+def get_all_user_logs(username, movie_title, max_pages=2):
     logs = []
     target_slug = slugify(movie_title)
 
@@ -86,90 +91,104 @@ def get_all_user_logs(username, movie_title, max_pages=3):
                 'word_count': word_count
             })
 
-        time.sleep(1)
+        time.sleep(0.2)
 
     return logs
 
-# Users and movies
-usernames = ['bjoubs', 'KingKrab', 'raymondeezy', 'meganyip1211', 'GeoMoD', 'ArnoZeld']
-movie_titles = ["The count of monte cristo 2024", 
-                "E.T. the Extra-Terrestrial",
-                "My Neighbor Totoro",
-                "Everybody Wants Some",
-                "Portrait of a lady on fire",
-                "Schindler's list"]
-#movie_titles = ["The count of monte cristo 2024"]
+@app.route('/')
+def index():
+    usernames = ['bjoubs',
+                 'KingKrab',
+                 'raymondeezy',
+                 'meganyip1211',
+                 'GeoMoD',
+                 'ArnoZeld',
+                 "BrittWilliamss",
+                 "emilylush11",
+                 "sarasantos28"]
+    
+    movie_titles = [
+        "The count of monte cristo 2024", 
+        "E.T. the Extra-Terrestrial",
+        "My Neighbor Totoro",
+        "Everybody Wants Some",
+        "Portrait of a lady on fire",
+        "Dead Poets Society",
+        "Schindler's list"
+    ]
 
-# Stats
-user_stats = defaultdict(lambda: {
-    'watched': 0,
-    'ratings': [],
-    'reviews': 0,
-    'words': [],
-})
+    # Stats
+    user_stats = defaultdict(lambda: {
+        'watched': 0,
+        'ratings': [],
+        'reviews': 0,
+        'words': [],
+    })
 
-movie_ratings = defaultdict(list)
-first_watch = defaultdict(list)
-longest_review = {'user': None, 'words': 0, 'title': None, 'url': None}
-shortest_review = {'user': None, 'words': float('inf'), 'title': None, 'url': None}
+    movie_ratings = defaultdict(list)
+    first_watch = defaultdict(list)
+    longest_review = {'user': None, 'words': 0, 'title': None, 'url': None}
+    shortest_review = {'user': None, 'words': float('inf'), 'title': None, 'url': None}
 
-for movie_title in movie_titles:
-    print(f"\n=== {movie_title} ===")
-    for username in usernames:
-        logs = get_all_user_logs(username, movie_title)
+    for movie_title in movie_titles:
+        for username in usernames:
+            logs = get_all_user_logs(username, movie_title)
 
-        if logs:
-            user_stats[username]['watched'] += 1
-            print(f"{username}'s logs for '{movie_title}':")
-            for log in logs:
-                movie_ratings[movie_title].append(log['rating'])
+            if logs:
+                user_stats[username]['watched'] += 1
+                for log in logs:
+                    movie_ratings[movie_title].append(log['rating'])
 
-                if log['rating'] is not None:
-                    user_stats[username]['ratings'].append(log['rating'])
+                    if log['rating'] is not None:
+                        user_stats[username]['ratings'].append(log['rating'])
 
-                if log['has_review']:
-                    user_stats[username]['reviews'] += 1
-                    user_stats[username]['words'].append(log['word_count'])
+                    if log['has_review']:
+                        user_stats[username]['reviews'] += 1
+                        user_stats[username]['words'].append(log['word_count'])
 
-                    # Track longest and shortest reviews
-                    if log['word_count'] > longest_review['words']:
-                        longest_review.update({'user': username, 'words': log['word_count'], 'title': log['title'], 'url': log['url']})
-                    if log['word_count'] < shortest_review['words'] and log['word_count'] > 0:
-                        shortest_review.update({'user': username, 'words': log['word_count'], 'title': log['title'], 'url': log['url']})
+                        # Track longest and shortest reviews
+                        if log['word_count'] > longest_review['words']:
+                            longest_review.update({'user': username, 'words': log['word_count'], 'title': log['title'], 'url': log['url']})
+                        if log['word_count'] < shortest_review['words'] and log['word_count'] > 0:
+                            shortest_review.update({'user': username, 'words': log['word_count'], 'title': log['title'], 'url': log['url']})
 
-                # First to log a movie
-                first_watch[movie_title].append((log['date'], username))
+                    # First to log a movie
+                    first_watch[movie_title].append((log['date'], username))
 
-                print(f" - {log['date']}: {log['rating_str']} ({'Review' if log['has_review'] else 'No review'}) {log['url']}")
-        else:
-            print(f"No logs found for '{movie_title}' by {username}.")
+    # Summary
+    summary = []
+    for username in sorted(user_stats, key=lambda u: user_stats[u]['watched'], reverse=True):
+        stats = user_stats[username]
+        avg_rating = round(sum(stats['ratings']) / len(stats['ratings']), 2) if stats['ratings'] else 0
+        avg_words = round(sum(stats['words']) / len(stats['words']), 1) if stats['words'] else 0
+        summary.append({
+            'username': username,
+            'watched': stats['watched'],
+            'avg_rating': avg_rating,
+            'reviews': stats['reviews'],
+            'avg_words': avg_words
+        })
 
-# Summary
-print("\n=== Summary ===")
-for username in sorted(user_stats, key=lambda u: user_stats[u]['watched'], reverse=True):
-    stats = user_stats[username]
-    avg_rating = round(sum(stats['ratings']) / len(stats['ratings']), 2) if stats['ratings'] else 0
-    avg_words = round(sum(stats['words']) / len(stats['words']), 1) if stats['words'] else 0
-    print(f"{username}: {stats['watched']} movies watched, avg rating {avg_rating}, {stats['reviews']} written reviews, avg words {avg_words}")
+    # Most divisive movie
+    #most_divisive = max(movie_ratings.items(), key=lambda x: statistics.stdev([r for r in x[1] if r is not None]) if len(x[1]) > 1 else 0)
 
-# Most divisive movie
-most_divisive = max(movie_ratings.items(), key=lambda x: statistics.stdev([r for r in x[1] if r is not None]) if len(x[1]) > 1 else 0)
-print(f"\nMost divisive movie: {most_divisive[0]} (std dev: {round(statistics.stdev(most_divisive[1]), 2)})")
+    if movie_ratings:
+        most_divisive = max(
+            movie_ratings.items(),
+            key=lambda x: statistics.stdev([r for r in x[1] if r is not None]) if len(x[1]) > 1 else 0,
+            default=("No movies", [])
+        )
+        most_divisive_stddev = round(statistics.stdev([r for r in most_divisive[1] if r is not None]), 2) if len(most_divisive[1]) > 1 else 0
+    else:
+        most_divisive = ("No movies", [])
+        most_divisive_stddev = 0
 
-# Most liked / disliked movie
-averages = {movie: sum(r for r in ratings if r is not None) / len([r for r in ratings if r is not None]) for movie, ratings in movie_ratings.items()}
-most_liked = max(averages.items(), key=lambda x: x[1])
-least_liked = min(averages.items(), key=lambda x: x[1])
-print(f"Most liked movie: {most_liked[0]} ({round(most_liked[1], 2)}⭐)")
-print(f"Least liked movie: {least_liked[0]} ({round(least_liked[1], 2)}⭐)")
+    # Most liked / disliked movie
+    averages = {movie: sum(r for r in ratings if r is not None) / len([r for r in ratings if r is not None]) for movie, ratings in movie_ratings.items()}
+    most_liked = max(averages.items(), key=lambda x: x[1])
+    least_liked = min(averages.items(), key=lambda x: x[1])
 
-# Longest / Shortest review
-print(f"\nLongest review: {longest_review['words']} words by {longest_review['user']} on '{longest_review['title']}' → {longest_review['url']}")
-print(f"Shortest review: {shortest_review['words']} words by {shortest_review['user']} on '{shortest_review['title']}' → {shortest_review['url']}")
+    return render_template('index.html', summary=summary, most_divisive=most_divisive, most_divisive_stddev=most_divisive_stddev, most_liked=most_liked, least_liked=least_liked, longest_review=longest_review, shortest_review=shortest_review, first_watch=first_watch)
 
-# First watchers
-print("\n=== First to Watch Each Movie ===")
-for movie, watches in first_watch.items():
-    sorted_watches = sorted([w for w in watches if w[0] != 'Unknown date'])
-    if sorted_watches:
-        print(f"{movie}: {sorted_watches[0][1]} on {sorted_watches[0][0]}")
+if __name__ == '__main__':
+    app.run(debug=True)

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Letterboxd Stats</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f2f4f8;
+            color: #333;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #222;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-top: 10px;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 40px;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        }
+
+        /* Summary Grid */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .summary-card {
+            background: #fafafa;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease;
+        }
+
+        .summary-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .summary-card strong {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #222;
+        }
+
+        .highlight {
+            background: #e0f7fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        p {
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+
+        a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 15px 0;
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive tweaks */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            h2 {
+                font-size: 1.3rem;
+            }
+
+            p {
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Letterboxd Stats</h1>
+    <div class="container">
+        <h2>Summary</h2>
+        <div class="summary-grid">
+            {% for user in summary %}
+            <div class="summary-card">
+                <strong>{{ user.username }}</strong>
+                {{ user.watched }} watched<br>
+                Avg rating: <span class="highlight">{{ user.avg_rating }}</span><br>
+                {{ user.reviews }} reviews<br>
+                Avg words: <span class="highlight">{{ user.avg_words }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <h2>Most Divisive Movie</h2>
+        <p>
+            {% if most_divisive_stddev > 0 %}
+                <span class="highlight">{{ most_divisive[0] }}</span> 
+                (std dev: {{ most_divisive_stddev }})
+            {% else %}
+                No divisive movie data available.
+            {% endif %}
+        </p>
+
+        <h2>Most Liked Movie</h2>
+        <p>
+            <span class="highlight">{{ most_liked[0] }}</span> 
+            ({{ most_liked[1]|round(2) }}⭐)
+        </p>
+
+        <h2>Least Liked Movie</h2>
+        <p>
+            <span class="highlight">{{ least_liked[0] }}</span> 
+            ({{ least_liked[1]|round(2) }}⭐)
+        </p>
+
+        <h2>Longest Review</h2>
+        <p>
+            <span class="highlight">{{ longest_review.words }}</span> words by 
+            <strong>{{ longest_review.user }}</strong> on 
+            "<em>{{ longest_review.title }}</em>" → 
+            <a href="{{ longest_review.url }}" target="_blank">Link</a>
+        </p>
+
+        <h2>Shortest Review</h2>
+        <p>
+            <span class="highlight">{{ shortest_review.words }}</span> words by 
+            <strong>{{ shortest_review.user }}</strong> on 
+            "<em>{{ shortest_review.title }}</em>" → 
+            <a href="{{ shortest_review.url }}" target="_blank">Link</a>
+        </p>
+    </div>
+    <footer>
+        &copy; 2025 Letterboxd Stats by Brandon Joubran
+    </footer>
+</body>
+</html>
