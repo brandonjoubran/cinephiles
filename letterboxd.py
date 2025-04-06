@@ -7,10 +7,25 @@ import time
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
+import json
 
 app = Flask(__name__)
 
 # Include all your existing functions here (slugify, extract_full_date, parse_rating, count_review_words, get_all_user_logs)
+
+CACHE_FILE = "/tmp/stats_cache.json"
+CACHE_TTL = 60 * 60  # 1 hour
+
+def is_cache_valid():
+    return os.path.exists(CACHE_FILE) and (time.time() - os.path.getmtime(CACHE_FILE) < CACHE_TTL)
+
+def load_cache():
+    with open(CACHE_FILE, 'r') as f:
+        return json.load(f)
+
+def save_cache(data):
+    with open(CACHE_FILE, 'w') as f:
+        json.dump(data, f)
 
 def slugify(title):
     return title.lower().replace(' ', '-').replace(':', '').replace("'", "").replace(",", "").replace(".", "").replace("&", "and")
@@ -99,6 +114,11 @@ def get_all_user_logs(username, movie_title, max_pages=2):
 
 @app.route('/')
 def index():
+    if is_cache_valid():
+        print("✅ Using cached data")
+        return render_template('index.html', **load_cache())
+    
+    print("♻️ Cache expired or missing. Recomputing...")
     usernames = [
                 'bjoubs',
                  'KingKrab',
@@ -206,7 +226,19 @@ def index():
     most_liked = max(averages.items(), key=lambda x: x[1])
     least_liked = min(averages.items(), key=lambda x: x[1])
 
-    return render_template('index.html', summary=summary, most_divisive=most_divisive, most_divisive_stddev=most_divisive_stddev, most_liked=most_liked, least_liked=least_liked, longest_review=longest_review, shortest_review=shortest_review, first_watch=first_watch)
+    context = {
+        "summary": summary,
+        "most_divisive": most_divisive,
+        "most_divisive_stddev": most_divisive_stddev,
+        "most_liked": most_liked,
+        "least_liked": least_liked,
+        "longest_review": longest_review,
+        "shortest_review": shortest_review,
+        "first_watch": first_watch,
+    }
+
+    save_cache(context)
+    return render_template('index.html', **context)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))  # Render provides PORT env variable
