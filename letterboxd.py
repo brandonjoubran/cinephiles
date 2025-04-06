@@ -101,24 +101,24 @@ def get_all_user_logs(username, movie_title, max_pages=2):
 def index():
     usernames = [
                 'bjoubs',
-                #  'KingKrab',
-                #  'raymondeezy',
-                #  'meganyip1211',
-                #  'GeoMoD',
-                #  'ArnoZeld',
-                #  "BrittWilliamss",
-                #  "emilylush11",
-                #  "sarasantos28"
+                 'KingKrab',
+                 'raymondeezy',
+                 'meganyip1211',
+                 'GeoMoD',
+                 'ArnoZeld',
+                 "BrittWilliamss",
+                 "emilylush11",
+                 "sarasantos28"
                  ]
     
     movie_titles = [
         "The count of monte cristo 2024", 
-        # "E.T. the Extra-Terrestrial",
-        # "My Neighbor Totoro",
-        # "Everybody Wants Some",
-        # "Portrait of a lady on fire",
-        # "Dead Poets Society",
-        # "Schindler's list"
+        "E.T. the Extra-Terrestrial",
+        "My Neighbor Totoro",
+        "Everybody Wants Some",
+        "Portrait of a lady on fire",
+        "Dead Poets Society",
+        "Schindler's list"
     ]
 
     # Stats
