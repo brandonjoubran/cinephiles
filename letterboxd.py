@@ -5,6 +5,8 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
 
 app = Flask(__name__)
 
@@ -130,14 +132,28 @@ def index():
     longest_review = {'user': None, 'words': 0, 'title': None, 'url': None}
     shortest_review = {'user': None, 'words': float('inf'), 'title': None, 'url': None}
 
-    for movie_title in movie_titles:
-        for username in usernames:
-            logs = get_all_user_logs(username, movie_title)
+    user_movie_pairs = [(username, title) for title in movie_titles for username in usernames]
+
+    logs_by_user_movie = {}
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_user_movie = {
+            executor.submit(get_all_user_logs, username, title): (username, title)
+            for username, title in user_movie_pairs
+        }
+
+        for future in as_completed(future_to_user_movie):
+            username, title = future_to_user_movie[future]
+            try:
+                logs = future.result()
+                logs_by_user_movie[(username, title)] = logs
+            except Exception as e:
+                print(f"Error with {username} - {title}: {e}")
 
             if logs:
                 user_stats[username]['watched'] += 1
                 for log in logs:
-                    movie_ratings[movie_title].append(log['rating'])
+                    movie_ratings[title].append(log['rating'])
 
                     if log['rating'] is not None:
                         user_stats[username]['ratings'].append(log['rating'])
@@ -153,7 +169,7 @@ def index():
                             shortest_review.update({'user': username, 'words': log['word_count'], 'title': log['title'], 'url': log['url']})
 
                     # First to log a movie
-                    first_watch[movie_title].append((log['date'], username))
+                    first_watch[title].append((log['date'], username))
 
     # Summary
     summary = []
@@ -191,4 +207,5 @@ def index():
     return render_template('index.html', summary=summary, most_divisive=most_divisive, most_divisive_stddev=most_divisive_stddev, most_liked=most_liked, least_liked=least_liked, longest_review=longest_review, shortest_review=shortest_review, first_watch=first_watch)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))  # Render provides PORT env variable
+    app.run(host='0.0.0.0', port=port)
