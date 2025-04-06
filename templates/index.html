@@ -132,11 +132,18 @@
         <div class="summary-grid">
             {% for user in summary %}
             <div class="summary-card">
-                <strong>{{ user.username }}</strong>
-                {{ user.watched }} watched<br>
-                Avg rating: <span class="highlight">{{ user.avg_rating }}</span><br>
-                {{ user.reviews }} reviews<br>
-                Avg words: <span class="highlight">{{ user.avg_words }}</span>
+                <form action="{{ url_for('refresh_user', username=user.username) }}" method="post" style="display: flex; flex-direction: column; gap: 6px;">
+                    <div>
+                        <strong>{{ user.username }}</strong>
+                        {{ user.watched }} watched<br>
+                        Avg rating: <span class="highlight">{{ user.avg_rating }}</span><br>
+                        {{ user.reviews }} reviews<br>
+                        Avg words: <span class="highlight">{{ user.avg_words }}</span>
+                    </div>
+                    <button type="submit" style="margin-top: 6px; align-self: flex-start; padding: 4px 8px; font-size: 0.85rem; background-color: #e0f7fa; border: 1px solid #b2ebf2; border-radius: 4px; cursor: pointer;">
+                        🔄 Refresh
+                    </button>
+                </form>
             </div>
             {% endfor %}
         </div>
