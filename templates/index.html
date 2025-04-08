@@ -130,7 +130,10 @@
         <a href="{{ url_for('index') }}" style="font-weight: 600; color: #333;">📊 Stats</a>
         <a href="{{ url_for('watchlist') }}" style="font-weight: 600; color: #333;">📽️ Watchlist</a>
     </nav>
-    <h1>Letterboxd Stats</h1>
+    <div style="text-align: center; margin-bottom: 30px;">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Letterboxd Stats Logo"
+             style="width: 320px; max-width: 90%; height: auto;">
+    </div>
     <div class="container">
         <h2>Summary</h2>
         <div class="summary-grid">
