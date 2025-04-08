@@ -126,6 +126,10 @@
     </style>
 </head>
 <body>
+    <nav style="display: flex; justify-content: center; gap: 30px; margin-bottom: 30px;">
+        <a href="{{ url_for('index') }}" style="font-weight: 600; color: #333;">📊 Stats</a>
+        <a href="{{ url_for('watchlist') }}" style="font-weight: 600; color: #333;">📽️ Watchlist</a>
+    </nav>
     <h1>Letterboxd Stats</h1>
     <div class="container">
         <h2>Summary</h2>
