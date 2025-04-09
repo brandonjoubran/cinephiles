@@ -24,7 +24,8 @@ load_dotenv()
 
 def get_poster(movie_title, release_year):
     # Your TMDb API key
-    API_KEY = os.getenv('API_KEY')
+    #API_KEY = os.getenv('API_KEY')
+    API_KEY = os.environ.get('API_KEY', os.getenv('API_KEY'))
 
     # Movie title and release year
     #movie_title = 'The Count of Monte Cristo'
@@ -59,7 +60,8 @@ def get_poster(movie_title, release_year):
 
 def get_poster(movie_id):
     # Your TMDb API key
-    API_KEY = os.getenv('API_KEY')
+    #API_KEY = os.getenv('API_KEY')
+    API_KEY = os.environ.get('API_KEY', os.getenv('API_KEY'))
         
     # Get movie details using the movie ID
     details_url = f'https://api.themoviedb.org/3/movie/{movie_id}?api_key={API_KEY}'
