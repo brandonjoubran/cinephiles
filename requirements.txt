@@ -3,3 +3,5 @@ requests>=2.31
 beautifulsoup4>=4.12
 lxml>=4.9
 gunicorn>=23.0.0
+gspread==3.6.0
+oauth2client==4.1.3
