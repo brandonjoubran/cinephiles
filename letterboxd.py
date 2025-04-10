@@ -12,7 +12,7 @@ from config import load_config
 from cache import is_cache_valid, load_cache, save_cache, CACHE_FILE
 from scraper import get_all_user_logs
 from utils import expand_short_url, build_stats
-from db import get_watchlist_sheet
+from db import get_watchlist_sheet, get_users_sheet
 
 app = Flask(__name__)
 
@@ -145,15 +145,27 @@ def watchlist():
     sheet = get_watchlist_sheet()
     records = sheet.get_all_records()
 
+    user_sheet = get_users_sheet() 
+    usernames = [row[0] for row in user_sheet.get_all_values()[1:]] 
+
     # Normalize boolean fields (optional)
     for row in records:
         row["IS_WATCHED"] = str(row.get("IS_WATCHED", "")).upper() == "TRUE"
         row["IS_NOMINATED"] = str(row.get("IS_NOMINATED", "")).upper() == "TRUE"
+        row["VOTED_BY"] = row.get("VOTED_BY", "").split(",") if row.get("VOTED_BY") else []
+        print(row["VOTED_BY"])
 
     # Sort records so IS_WATCHED == FALSE appear first
-    sorted_records = sorted(records, key=lambda x: x["IS_WATCHED"])
+    sorted_records = sorted(
+    records,
+    key=lambda x: (
+        not x["IS_NOMINATED"],   # Nominated first (False comes before True)
+        x["IS_WATCHED"]          # Unwatched before watched (False comes before True)
+    )   
+)   
 
-    return render_template("watchlist.html", movies=sorted_records)
+
+    return render_template("watchlist.html", movies=sorted_records, usernames=usernames)
 
 @app.route('/add-movie', methods=['POST'])
 def add_movie():
@@ -263,6 +275,76 @@ def mark_unwatched(movie_slug):
 
     # Redirect back to the watchlist page
     return redirect(url_for('watchlist'))
+
+@app.route('/nominate', methods=['POST'])
+def nominate_movie():
+    slug = request.form.get("slug")
+    username = request.form.get("username")
+
+    sheet = get_watchlist_sheet()
+    records = sheet.get_all_records()
+    headers = sheet.row_values(1)
+
+    for idx, row in enumerate(records):
+        if row["SLUG"] == slug:
+            row_index = idx + 2  # header is row 1
+            sheet.update_cell(row_index, headers.index("IS_NOMINATED") + 1, "TRUE")
+            sheet.update_cell(row_index, headers.index("NOMINATED_BY") + 1, username)
+            break
+
+    return redirect(url_for("watchlist"))
+
+@app.route('/remove_nomination', methods=['POST'])
+def remove_nomination():
+    slug = request.form.get("slug")
+
+    sheet = get_watchlist_sheet()
+    records = sheet.get_all_records()
+    headers = sheet.row_values(1)
+
+    for idx, row in enumerate(records):
+        if row["SLUG"] == slug:
+            row_index = idx + 2
+            sheet.update_cell(row_index, headers.index("IS_NOMINATED") + 1, "FALSE")
+            sheet.update_cell(row_index, headers.index("NOMINATED_BY") + 1, "")
+            sheet.update_cell(row_index, headers.index("VOTED_BY") + 1, "")
+            break
+
+    return redirect(url_for("watchlist"))
+
+@app.route('/vote_movie', methods=['POST'])
+def vote_movie():
+    slug = request.form.get("slug")
+    username = request.form.get("username")  # Get the username from the dropdown
+
+    if not username:
+        return redirect(url_for("watchlist"))  # Redirect if no username is provided
+
+    sheet = get_watchlist_sheet()
+    records = sheet.get_all_records()
+    headers = sheet.row_values(1)
+
+    for idx, row in enumerate(records):
+        if row["SLUG"] == slug:
+            row_index = idx + 2  # Row index in Google Sheets (1-based index)
+            voted_by = row.get("VOTED_BY", "")
+            
+            # Split the current voted_by list into a list of users and strip whitespace
+            voted_by_list = [user.strip() for user in voted_by.split(",")] if voted_by else []
+            
+            if username.strip() in voted_by_list:
+                # If the user has already voted, remove their vote
+                voted_by_list.remove(username.strip())
+            else:
+                # If the user hasn't voted, add their vote
+                voted_by_list.append(username.strip())
+            
+            # Update the VOTED_BY field
+            new_voted_by = ", ".join(voted_by_list)
+            sheet.update_cell(row_index, headers.index("VOTED_BY") + 1, new_voted_by)
+            break
+
+    return redirect(url_for("watchlist"))
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

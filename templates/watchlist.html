@@ -205,6 +205,183 @@
         .mark-unwatched-btn:hover {
             background-color: #ef6c00;
         }
+
+        .movie-card.nominated {
+            border: 2px solid #ff9800;
+            box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+        }
+
+        /* Nominate Button */
+        .nominate-btn {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background-color: #ff9800;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+        }
+
+        .nominate-btn:hover {
+            background-color: #fb8c00;
+        }
+
+        /* Remove Nomination Button */
+        .remove-nomination-btn {
+            background-color: #f44336;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            border: none;
+        }
+
+        .remove-nomination-btn:hover {
+            background-color: #d32f2f;
+        }
+
+        /* Nominate Modal Layout (reuse from addMovieModal) */
+        #nominateModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        #nominateModal select {
+            padding: 12px;
+            width: 100%;
+            margin-bottom: 16px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        #nominateModal button {
+            padding: 12px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        #nominateModal button.close-btn {
+            background-color: #ccc;
+            color: black;
+        }
+
+        #nominateModal button:hover {
+            opacity: 0.9;
+        }
+
+        #nominateModal button[type="submit"] {
+            padding: 12px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+        }
+
+        /* Same styles as the remove nomination modal */
+        .vote-btn {
+            padding: 8px 12px;
+            background-color: #ffeb3b;
+            color: #333;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .vote-btn:hover {
+            background-color: #fbc02d;
+        }
+
+        .confirm-btn {
+            background-color: #007BFF;
+        }
+
+        .confirm-btn:hover {
+            background-color: #0069c0;
+        }
+
+        /* Nominate Modal Layout (reuse from addMovieModal) */
+        #voteModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        #voteModal select {
+            padding: 12px;
+            width: 100%;
+            margin-bottom: 16px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        #voteModal button {
+            padding: 12px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        #voteModal button.close-btn {
+            background-color: #ccc;
+            color: black;
+        }
+
+        #voteModal button:hover {
+            opacity: 0.9;
+        }
+
+        #voteModal button[type="submit"] {
+            padding: 12px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -229,16 +406,57 @@
             <h2>Add a New Movie</h2>
             <form action="{{ url_for('add_movie') }}" method="post">
                 <input type="text" name="url" placeholder="Letterboxd Link" required>
-                <input type="text" name="username" placeholder="Your Name" required>
+                <select name="username" required style="padding: 12px; width: 100%; margin-bottom: 16px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem;">
+                    <option value="" disabled selected>Select your name</option>
+                    {% for username in usernames %}
+                        <option value="{{ username }}">{{ username }}</option>
+                    {% endfor %}
+                </select>
                 <button type="submit">Add Movie</button>
             </form>
             <button onclick="closeModal()" class="close-btn">Close</button>
         </div>
     </div>
 
+    <!-- Modal for Nominating a Movie -->
+    <div id="nominateModal">
+        <div class="modal-content">
+            <h2>Nominate a Movie</h2>
+            <form id="nominateForm" method="POST" action="{{ url_for('nominate_movie') }}">
+                <input type="hidden" name="slug" id="nominateSlug" />
+                <select name="username" required>
+                    <option value="" disabled selected>Select your name</option>
+                    {% for username in usernames %}
+                        <option value="{{ username }}">{{ username }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit">Nominate</button>
+            </form>
+            <button onclick="closeNominateModal()" class="close-btn">Close</button>
+        </div>
+    </div>
+
+    <!-- Vote Modal -->
+    <div id="voteModal" class="modal">
+        <div class="modal-content">
+            <h2>Vote for this Movie</h2>
+            <form id="voteForm" method="POST" action="{{ url_for('vote_movie') }}">
+                <input type="hidden" name="slug" id="voteSlug">
+                <select name="username" required >
+                    <option value="" disabled selected>Select your name</option>
+                    {% for username in usernames %}
+                        <option value="{{ username }}">{{ username }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="confirm-btn">Submit Vote</button>
+            </form>
+            <button onclick="closeVoteModal()" class="close-btn">Cancel</button>
+        </div>
+    </div>
+
     <div class="watchlist">
         {% for movie in movies %}
-            <div class="movie-card {% if movie.IS_WATCHED %}watched{% endif %}">
+            <div class="movie-card {% if movie.IS_WATCHED %}watched{% endif %} {% if movie.IS_NOMINATED %}nominated{% endif %}">
                 <img class="poster" src="{{ movie.POSTER }}" alt="{{ movie.TITLE }} poster" />
                 <div class="details">
                     <a class="title" href="{{ movie.URL }}" target="_blank">{{ movie.TITLE }}</a>
@@ -251,32 +469,74 @@
                             <span class="flag">✅ Watched</span>
                         {% endif %}
                     </div>
+                    {% if movie.IS_NOMINATED and movie.NOMINATED_BY %}
+                        <div class="meta">Nominated by <strong>{{ movie.NOMINATED_BY }}</strong></div>
+                    {% endif %}
+                    {% if movie.VOTED_BY %}
+                        <div class="meta">
+                            Votes: 
+                            <strong>{{ movie.VOTED_BY | join(", ") }}</strong>
+                        </div>
+                    {% endif %}
                 </div>
+    
                 <form action="{{ url_for('delete_movie', movie_slug=movie.SLUG) }}" method="POST">
                     <button type="submit" class="delete-btn">Delete</button>
                 </form>
+    
                 {% if not movie.IS_WATCHED %}
-                <form action="{{ url_for('mark_watched', movie_slug=movie.SLUG) }}" method="POST">
-                    <button type="submit" class="mark-watched-btn">Mark as Watched</button>
-                </form>
+                    <form action="{{ url_for('mark_watched', movie_slug=movie.SLUG) }}" method="POST">
+                        <button type="submit" class="mark-watched-btn">Mark as Watched</button>
+                    </form>
+                {% else %}
+                    <form action="{{ url_for('mark_unwatched', movie_slug=movie.SLUG) }}" method="POST">
+                        <button type="submit" class="mark-unwatched-btn">Mark as Unwatched</button>
+                    </form>
                 {% endif %}
-                {% if movie.IS_WATCHED %}
-                <form action="{{ url_for('mark_unwatched', movie_slug=movie.SLUG) }}" method="POST">
-                    <button type="submit" class="mark-unwatched-btn">Mark as Unwatched</button>
-                </form>
+    
+                {% if not movie.IS_WATCHED and not movie.IS_NOMINATED %}
+                    <button class="nominate-btn" onclick="openNominateModal('{{ movie.SLUG }}')">🎯 Nominate</button>
+                {% elif movie.IS_NOMINATED %}
+                    <!-- Vote Button -->
+                    <button class="vote-btn" onclick="openVoteModal('{{ movie.SLUG }}')" style="position: absolute; bottom: 100px; right: 12px;">
+                        🗳️ Vote
+                    </button>
+                    
+                    <form action="{{ url_for('remove_nomination') }}" method="POST" style="position:absolute; bottom:64px; right:12px;">
+                        <input type="hidden" name="slug" value="{{ movie.SLUG }}">
+                        <button type="submit" class="remove-nomination-btn">❌ Remove Nomination</button>
+                    </form>
                 {% endif %}
             </div>
         {% endfor %}
     </div>
 
     <script>
-        // Modal Control
+        // Modal open and close functions
         function openModal() {
             document.getElementById('addMovieModal').style.display = 'flex';
         }
 
         function closeModal() {
             document.getElementById('addMovieModal').style.display = 'none';
+        }
+
+        function openNominateModal(slug) {
+            document.getElementById('nominateSlug').value = slug;
+            document.getElementById('nominateModal').style.display = 'flex';
+        }
+
+        function closeNominateModal() {
+            document.getElementById('nominateModal').style.display = 'none';
+        }
+
+        function openVoteModal(slug) {
+            document.getElementById('voteSlug').value = slug;
+            document.getElementById('voteModal').style.display = 'flex';
+        }
+
+        function closeVoteModal() {
+            document.getElementById('voteModal').style.display = 'none';
         }
     </script>
 </body>
