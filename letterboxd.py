@@ -4,14 +4,16 @@ from bs4 import BeautifulSoup
 import re
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import concurrent.futures
 from datetime import datetime
 from oauth2client.service_account import ServiceAccountCredentials
 from dotenv import load_dotenv
+import time
 
 from config import load_config
 from cache import is_cache_valid, load_cache, save_cache, CACHE_FILE
 from scraper import get_all_user_logs
-from utils import expand_short_url, build_stats
+from utils import expand_short_url, build_stats, slugify
 from db import get_watchlist_sheet, get_users_sheet
 
 app = Flask(__name__)
@@ -80,33 +82,36 @@ def get_poster(movie_id):
 # -------------- Routes ------------------
 @app.route('/')
 def index():
-    
+    start_time = time.time()  # Start timer for the entire function
+
+    logs_by_user = {}
+
     if is_cache_valid():
         print("✅ Using cached data")
         cache = load_cache()
-        logs_by_user_movie = {}
-        for key, logs in cache.items():
-            if '||' in key:
-                username, title = key.split('||')
-                logs_by_user_movie[(username, title)] = logs
+        logs_by_user = cache  # entire structure is now {username: [logs]}
     else:
         print("♻️ Recomputing cache")
-        logs_by_user_movie = {}
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            futures = {
-                executor.submit(get_all_user_logs, username, movie): (username, movie)
-                for username in USERNAMES for movie in MOVIES
-            }
-            for future in as_completed(futures):
-                username, movie = futures[future]
-                try:
-                    logs_by_user_movie[(username, movie)] = future.result()
-                except Exception as e:
-                    print(f"Failed to fetch logs for {username} - {movie}: {e}")
+        cache = {}
 
-        save_cache({f"{u}||{m}": logs for (u, m), logs in logs_by_user_movie.items()})
+        def fetch_or_load_logs(username):
+            print(f"⏳ Fetching diary for {username}")
+            logs = get_all_user_logs(username, MOVIES)
+            return username, logs
 
-    return render_template('index.html', **build_stats(logs_by_user_movie))
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            results = executor.map(fetch_or_load_logs, USERNAMES)
+            for username, logs in results:
+                logs_by_user[username] = logs
+                cache[username] = logs
+
+        # Save updated cache
+        save_cache(cache)
+
+    end_time = time.time()  # End timer for the entire function
+    print(f"✅ Total index() execution time: {end_time - start_time:.2f} seconds")
+
+    return render_template('index.html', **build_stats(logs_by_user))
 
 @app.route('/refresh/<username>', methods=['POST'])
 def refresh_user(username):

@@ -45,20 +45,39 @@ def count_review_words(url):
     return 0
 
 # -------------- Scraper ------------------
-def get_all_user_logs(username, movie_title, max_pages=2):
+def get_all_user_logs(username, movie_titles, max_pages=1):
     logs = []
-    target_slug = slugify(movie_title)
+    target_slugs = []
+    #target_slug = slugify(movie_title)
+    for movie_title in movie_titles:
+        target_slug = slugify(movie_title)
+        target_slugs.append(target_slug)
+
+    # Start timer for the entire function
+    function_start = time.time()
 
     for page in range(1, max_pages + 1):
+        # Start timer for each page request
+        page_start = time.time()
+
         url = f'https://letterboxd.com/{username}/films/diary/page/{page}/'
         resp = requests.get(url)
         if resp.status_code != 200:
+            print(f"Page {page}: Request failed with status code {resp.status_code}")
             break
 
         soup = BeautifulSoup(resp.text, 'html.parser')
         rows = soup.select('tr.diary-entry-row')
         if not rows:
+            print(f"Page {page}: No diary entry rows found.")
             break
+
+        # End timer for page request and parsing
+        page_end = time.time()
+        print(f"Page {page}: Request and parsing took {page_end - page_start:.2f} seconds")
+
+        # Start timer for processing rows
+        rows_start = time.time()
 
         for row in rows:
             poster = row.select_one('div[data-film-slug]')
@@ -66,7 +85,7 @@ def get_all_user_logs(username, movie_title, max_pages=2):
                 continue
 
             slug = slugify(poster['data-film-slug'])
-            if slug != target_slug:
+            if slug not in target_slugs:
                 continue
 
             title_tag = row.select_one('h3.headline-3 a')
@@ -78,7 +97,13 @@ def get_all_user_logs(username, movie_title, max_pages=2):
             rating_text = rating_tag.text.strip() if rating_tag else ''
             rating = parse_rating(rating_text)
             has_review = row.select_one('a.icon-review') is not None
+
+            # Start timer for counting review words
+            review_start = time.time()
             word_count = count_review_words(link) if has_review else 0
+            review_end = time.time()
+            if has_review:
+                print(f"Counting review words took {review_end - review_start:.2f} seconds")
 
             logs.append({
                 'title': title,
@@ -89,5 +114,63 @@ def get_all_user_logs(username, movie_title, max_pages=2):
                 'has_review': has_review,
                 'word_count': word_count
             })
+
+        # End timer for processing rows
+        rows_end = time.time()
+        print(f"Page {page}: Processing rows took {rows_end - rows_start:.2f} seconds")
+
+        # Add a delay to avoid overwhelming the server
         time.sleep(0.2)
+
+    # End timer for the entire function
+    function_end = time.time()
+    print(f"get_all_user_logs({username}, {movie_title}) took {function_end - function_start:.2f} seconds")
+
+    return logs
+
+def get_user_diary(username, max_pages=1):
+    logs = []
+
+    for page in range(1, max_pages + 1):
+        url = f'https://letterboxd.com/{username}/films/diary/page/{page}/'
+        resp = requests.get(url)
+        if resp.status_code != 200:
+            print(f"Page {page}: Request failed with status code {resp.status_code}")
+            break
+
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        rows = soup.select('tr.diary-entry-row')
+        if not rows:
+            print(f"Page {page}: No diary entry rows found.")
+            break
+
+        for row in rows:
+            poster = row.select_one('div[data-film-slug]')
+            if not poster:
+                continue
+
+            slug = slugify(poster['data-film-slug'])
+            title_tag = row.select_one('h3.headline-3 a')
+            title = title_tag.text.strip() if title_tag else 'Unknown Title'
+            link = f"https://letterboxd.com{title_tag['href']}" if title_tag else ''
+            date_tag = row.select_one('td.td-day a')
+            date = extract_full_date(date_tag['href']) if date_tag and date_tag.has_attr('href') else 'Unknown date'
+            rating_tag = row.select_one('div.hide-for-owner span.rating')
+            rating_text = rating_tag.text.strip() if rating_tag else ''
+            rating = parse_rating(rating_text)
+            has_review = row.select_one('a.icon-review') is not None
+
+            logs.append({
+                'slug': slug,
+                'title': title,
+                'date': date,
+                'rating': rating,
+                'rating_str': rating_text,
+                'url': link,
+                'has_review': has_review
+            })
+
+        # Add a delay to avoid overwhelming the server
+        time.sleep(0.2)
+
     return logs
