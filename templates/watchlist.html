@@ -18,7 +18,7 @@
         /* Header styles */
         .header {
             width: 100%;
-            max-width: 80%;
+            max-width: 95%;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -99,8 +99,8 @@
         }
 
         .logo {
-            height: 100px;
-            max-width: 80%;
+            /* height: 100px; */
+            max-width: 95%;
             object-fit: contain;
             transition: transform 0.3s ease, opacity 0.3s ease;
             will-change: transform;
@@ -112,7 +112,7 @@
         }
 
         .card-container {
-            max-width: 80%;
+            max-width: 95%;
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -166,6 +166,8 @@
             font-weight: bold;
             margin-bottom: 4px;
             font-size: clamp(1.4rem, 0.1vw, 0.8rem);
+            text-decoration: none;
+            color: #222;
         }
 
         .card-meta {
@@ -491,6 +493,10 @@
             <a href="{{ url_for('watchlist') }}" class="nav-item active">🎬 Watchlist</a>
         </div>
     </nav>
+    <!-- <nav style="display: flex; justify-content: center; gap: 30px; margin-bottom: 30px;">
+        <a href="{{ url_for('index') }}" style="font-weight: 600; color: #333;">📊 Stats</a>
+        <a href="{{ url_for('watchlist') }}" style="font-weight: 600; color: #333;">📽️ Watchlist</a>
+    </nav> -->
     <div class="logo-container">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Watchlist Logo" class="logo" />
     </div>
@@ -509,7 +515,7 @@
             <div class="card-inner">
                 <img class="card-img" src="{{ movie.POSTER }}" alt="{{ movie.TITLE }} Poster" />
                 <div class="card-content">
-                    <div class="card-title" href="{{ movie.URL }}" target="_blank">{{ movie.TITLE }}</div>
+                    <a class="card-title" href="{{ movie.URL }}" target="_blank">{{ movie.TITLE }}</a>
                     <div class="card-meta"><strong>{{ movie.ADDED_BY }}</strong> - {{ movie.DATE_ADDED }}</div>
                     {% if movie.IS_NOMINATED %}
                     <div class="card-nomination">
@@ -574,7 +580,7 @@
     <div id="addModal" class="modal-overlay hidden">
         <div class="modal">
             <h2>Add a Movie</h2>
-            <form action="{{ url_for('add_movie') }}" method="post">
+            <form action="{{ url_for('add_movie') }}" method="post" style="display: contents;">
                 <label for="movie-link">Enter a Letterboxd link:</label>
                 <input name="url" type="text" id="movie-link" placeholder="Enter Letterboxd link..." required/>
 
