@@ -3,191 +3,138 @@
 
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎬 Watchlist</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 40px 20px;
-            background-color: #f4f4f4;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+        /* ==== Global Reset & Viewport Fix ==== */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
 
-        /* Header styles */
-        .header {
-            width: 100%;
-            max-width: 95%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 32px;
-        }
+*, *::before, *::after {
+    box-sizing: inherit;
+}
 
-        .header-title {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 2.2rem;
-            color: #333;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+.viewport-fix {
+    max-width: 100vw;
+    overflow-x: hidden;
+}
 
-        .add-movie-btn {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 44px;
-            height: 44px;
-            font-size: 1.8rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-            transition: background-color 0.2s ease;
-        }
+/* ==== Typography & Base Layout ==== */
+body {
+    font-family: Arial, sans-serif;
+    padding: 40px 20px;
+    background-color: #f4f4f4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
-        .add-movie-btn:hover {
-            background-color: #0056b3;
-        }
+/* ==== Header ==== */
+.header {
+    width: 100%;
+    max-width: 95%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
 
-        .navbar {
-            width: 100%;
-            background-color: #ffffff;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            padding: 12px 20px;
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
+.header-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
-        .nav-container {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-        }
+.add-movie-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    transition: background-color 0.2s ease;
+}
 
-        .nav-item {
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 1.1rem;
-            color: #555;
-            padding: 8px 12px;
-            border-radius: 6px;
-            transition: background-color 0.2s, color 0.2s;
-        }
+.add-movie-btn:hover {
+    background-color: #0056b3;
+}
 
-        .nav-item:hover {
-            background-color: #f0f0f0;
-            color: #000;
-        }
+/* ==== Navbar ==== */
+.navbar {
+    width: 100%;
+    background-color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
 
-        .nav-item.active {
-            background-color: #007bff;
-            color: white;
-        }
+.nav-container {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
 
-        .logo-container {
-            margin: 24px 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+.nav-item {
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #555;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: background-color 0.2s, color 0.2s;
+}
 
-        .logo {
-            /* height: 100px; */
-            max-width: 95%;
-            object-fit: contain;
-            transition: transform 0.3s ease, opacity 0.3s ease;
-            will-change: transform;
-        }
+.nav-item:hover {
+    background-color: #f0f0f0;
+    color: #000;
+}
 
-        .logo:hover {
-            transform: scale(1.08) rotate(-2deg);
-            opacity: 0.95;
-        }
+.nav-item.active {
+    background-color: #007bff;
+    color: white;
+}
 
-        .card-container {
-            max-width: 95%;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
+/* ==== Logo ==== */
+.logo-container {
+    margin: 24px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
 
-        .card {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            min-width: 60%;
-        }
+.logo {
+    max-width: 60%;
+    object-fit: contain;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    will-change: transform;
+}
 
-        .card-inner {
-            display: flex;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            box-sizing: border-box;
-        }
+.logo:hover {
+    transform: scale(1.08) rotate(-2deg);
+    opacity: 0.95;
+}
 
-        .card-nominated .card-inner {
-            border-left: 6px solid #ffa500;
-            background-color: #fffdf7;
-            box-shadow: 0 0 16px rgba(255, 165, 0, 0.7);
-            animation: pulse 2.5s ease-in-out;
-            /* increased alpha & spread */
-        }
+/* ==== Cards ==== */
 
-        .card-img {
-            flex-shrink: 0;
-            width: 150px;
-            height: auto;
-            aspect-ratio: 2 / 3;
-            object-fit: cover;
-            display: block;
-        }
-
-        .card-content {
-            flex: 1;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            overflow-wrap: break-word;
-        }
-
-        .card-title {
-            /* font-size: 1.4rem; */
-            font-weight: bold;
-            margin-bottom: 4px;
-            font-size: clamp(1.4rem, 0.1vw, 0.8rem);
-            text-decoration: none;
-            color: #222;
-        }
-
-        .card-meta {
-            font-size: 0.9rem;
-            color: #888;
-            margin-bottom: 12px;
-        }
-
-        .card-nomination {
-            background-color: #fff5e6;
-            border-left: 4px solid #ffa500;
-            padding: 8px 12px;
-            margin-bottom: 12px;
-            font-size: 0.95rem;
-            line-height: 1.4;
-            color: #444;
-            border-radius: 4px;
-        }
-
-        .status-highlight {
+.status-highlight {
             font-weight: bold;
             color: #cc7000;
         }
@@ -199,238 +146,305 @@
         .votes {
             color: #333;
         }
-
-        .card-description {
-            color: #555;
-        }
-
-        .card-actions {
-            flex: 0 0 20%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 16px;
-            gap: 12px;
-        }
-
-        .action-btn {
-            padding: 12px 18px;
-            font-size: 1rem;
-            font-weight: bold;
-            border: none;
-            border-radius: 24px;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            width: 100%;
-        }
-
-        .nominate-btn {
-            background-color: #007bff;
-            color: white;
-        }
-
-        .nominate-btn:hover {
-            background-color: #0056b3;
-        }
-
-        .remove-nominate-btn {
-            background-color: #f44336;
-            color: white;
-        }
-
-        .remove-nominate-btn:hover {
-            background-color: #d32f2f;
-        }
-
-        .vote-btn {
-                background-color: #ffeb3b;
-                color: #333;
-            }
-
-        .card-watched {
-            opacity: 0.6;
-        }
-
-        .card-watched .card-title,
-        .card-watched .card-meta {
-            text-decoration: line-through;
-        }
-
-        .card-watched .card-watched-label {
-            background-color: #e6f4ea;
-            border-left: 4px solid #28a745;
+        .card-nomination {
+            background-color: #fff5e6;
+            border-left: 4px solid #ffa500;
             padding: 8px 12px;
             margin-bottom: 12px;
             font-size: 0.95rem;
             line-height: 1.4;
-            color: #2f6846;
+            color: #444;
             border-radius: 4px;
         }
+.card-container {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 0 10px;
+}
 
-        .watched-btn {
-            background-color: #28a745;
-            color: white;
-        }
+.card {
+    width: 100%;
+    box-sizing: border-box;
+}
 
-        .watched-btn:hover {
-            background-color: #1e7e34;
-        }
+.card-inner {
+    display: flex;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    flex-wrap: wrap;
+}
 
-        .delete-btn {
-            position: absolute;
-            top: -12px;
-            right: -12px;
-            width: 32px;
-            height: 32px;
-            background-color: red;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-            transition: background-color 0.2s ease;
-            z-index: 1;
-        }
+.card-nominated .card-inner {
+    border-left: 6px solid #ffa500;
+    background-color: #fffdf7;
+    box-shadow: 0 0 16px rgba(255, 165, 0, 0.7);
+    animation: pulse 2.5s ease-in-out;
+}
 
-        .delete-btn:hover {
-            background-color: darkred;
-        }
+.card-img {
+    width: 150px;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+}
 
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 999;
-        }
+.card-content {
+    flex: 1;
+    padding: 16px;
+    word-break: break-word;
+}
 
-        .modal {
-            background: white;
-            padding: 24px 32px;
-            border-radius: 12px;
-            max-width: 400px;
-            width: 90%;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-            animation: fadeIn 0.3s ease-out;
-        }
+.card-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+    font-size: clamp(1.4rem, 4vw, 1.6rem);
+    text-decoration: none;
+    color: #222;
+}
 
-        .modal h2 {
-            margin-top: 0;
-            font-size: 1.5rem;
-        }
+.card-meta {
+    font-size: 0.9rem;
+    color: #888;
+    margin-bottom: 12px;
+}
 
-        .modal label {
-            display: block;
-            margin: 12px 0 6px;
-            font-weight: bold;
-        }
+.card-description {
+    color: #555;
+}
 
-        .modal input,
-        .modal select {
-            width: 100%;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            margin-bottom: 10px;
-            font-size: 1rem;
-            box-sizing: border-box;
-            /* 👈 this prevents it from overflowing */
-        }
+.card-actions {
+    min-width: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    gap: 12px;
+}
 
-        .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-            margin-top: 16px;
-        }
+/* ==== Buttons ==== */
+.action-btn {
+    padding: 12px 18px;
+    font-size: 1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    width: 100%;
+}
 
-        .modal .close-btn,
-        .modal .submit-btn {
-            padding: 10px 16px;
-            border: none;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-        }
+.nominate-btn {
+    background-color: #007bff;
+    color: white;
+}
 
-        .modal .close-btn {
-            background-color: #ccc;
-            color: #333;
-        }
+.nominate-btn:hover {
+    background-color: #0056b3;
+}
 
-        .modal .submit-btn {
-            background-color: #007bff;
-            color: white;
-        }
+.remove-nominate-btn {
+    background-color: #f44336;
+    color: white;
+}
 
-        .hidden {
-            display: none;
-        }
+.remove-nominate-btn:hover {
+    background-color: #d32f2f;
+}
 
-        .view-votes-btn {
-            display: none;
-        }
+.watched-btn {
+    background-color: #28a745;
+    color: white;
+}
 
-        .badge {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: #ffa500;
-            color: white;
-            padding: 4px 8px;
-            font-weight: bold;
-            font-size: 0.85rem;
-            border-radius: 6px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-            z-index: 2;
-        }
+.watched-btn:hover {
+    background-color: #1e7e34;
+}
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: scale(0.95);
-            }
+.vote-btn {
+    background-color: #ffeb3b;
+    color: #333;
+}
 
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
+/* ==== Watched Style ==== */
+.card-watched {
+    opacity: 0.6;
+}
 
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 rgba(255, 165, 0, 0.0);
-            }
+.card-watched .card-title,
+.card-watched .card-meta {
+    text-decoration: line-through;
+}
 
-            50% {
-                box-shadow: 0 0 24px rgba(255, 165, 0, 0.9);
-            }
+.card-watched .card-watched-label {
+    background-color: #e6f4ea;
+    border-left: 4px solid #28a745;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: #2f6846;
+    border-radius: 4px;
+}
 
-            100% {
-                box-shadow: 0 0 0 rgba(255, 165, 0, 0.0);
-            }
-        }
+/* ==== Delete Button ==== */
+.delete-btn {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 32px;
+    height: 32px;
+    background-color: red;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.2s ease;
+    z-index: 1;
+}
 
-        /* Responsive stacking layout for smaller screens */
-        @media (max-width: 900px) {
+.delete-btn:hover {
+    background-color: darkred;
+}
+
+/* ==== Modal ==== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.modal {
+    background: white;
+    padding: 24px 20px;
+    border-radius: 12px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    animation: fadeIn 0.3s ease-out;
+    box-sizing: border-box;
+}
+
+.modal h2 {
+    margin-top: 0;
+    font-size: 1.5rem;
+}
+
+.modal label {
+    display: block;
+    margin: 12px 0 6px;
+    font-weight: bold;
+}
+
+.modal input,
+.modal select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    margin-bottom: 10px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    word-break: break-word;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.modal .close-btn,
+.modal .submit-btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.modal .close-btn {
+    background-color: #ccc;
+    color: #333;
+}
+
+.modal .submit-btn {
+    background-color: #007bff;
+    color: white;
+}
+
+/* ==== Misc ==== */
+.badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: #ffa500;
+    color: white;
+    padding: 4px 8px;
+    font-weight: bold;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    z-index: 2;
+}
+
+.view-votes-btn {
+    display: none;
+}
+
+.hidden {
+    display: none;
+}
+
+/* ==== Animations ==== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 rgba(255, 165, 0, 0);
+    }
+    50% {
+        box-shadow: 0 0 24px rgba(255, 165, 0, 0.9);
+    }
+    100% {
+        box-shadow: 0 0 0 rgba(255, 165, 0, 0);
+    }
+}
+
+/* Responsive stacking layout for smaller screens */
+@media (max-width: 900px) {
             .card-inner {
                 flex-direction: row;
                 align-items: stretch;
                 padding: 0;
-                /* remove padding around the flex container */
                 gap: 0;
-                /* eliminate extra spacing between items */
                 box-sizing: border-box;
             }
 
@@ -483,6 +497,72 @@
                 display: inline;
             }
         }
+
+/* ==== Mobile ==== */
+@media (max-width: 600px) {
+
+    /* .logo {
+    max-width: 80%;
+    object-fit: contain;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    will-change: transform;
+} */
+
+    .modal {
+        border-radius: 12px;
+        max-width: none;
+        width: 90%;
+        height: auto;
+        max-height: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .card-inner {
+        flex-direction: column;
+    }
+
+    .card-img {
+        width: 100%;
+        height: auto;
+    }
+
+    .card-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .action-btn {
+        width: 100%;
+    }
+
+    /* Fix: make each card a relative container so buttons stay inside */
+.card {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Fix: delete button now positions relative to each card, not screen */
+/* .delete-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2; /* stay above content */
+} */
+
+/* Improve nominated card appearance to match base style */
+.card-nominated .card-inner {
+    border-left: 6px solid #ffa500;
+    background-color: #fffdf7;
+    box-shadow: 0 4px 12px rgba(255, 165, 0, 0.4); /* match shadow strength */
+    border-radius: 8px;
+    padding: 0; /* use the same padding from .card-inner if needed */
+    overflow: hidden;
+    animation: pulse 2.5s ease-in-out;
+}
     </style>
 </head>
 
@@ -493,10 +573,6 @@
             <a href="{{ url_for('watchlist') }}" class="nav-item active">🎬 Watchlist</a>
         </div>
     </nav>
-    <!-- <nav style="display: flex; justify-content: center; gap: 30px; margin-bottom: 30px;">
-        <a href="{{ url_for('index') }}" style="font-weight: 600; color: #333;">📊 Stats</a>
-        <a href="{{ url_for('watchlist') }}" style="font-weight: 600; color: #333;">📽️ Watchlist</a>
-    </nav> -->
     <div class="logo-container">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Watchlist Logo" class="logo" />
     </div>
@@ -553,7 +629,8 @@
 
                     <form action="{{ url_for('remove_nomination') }}" method="POST" style="display: contents;">
                         <!-- <input type="hidden" name="slug" value="{{ movie.SLUG }}"> -->
-                        <form action="{{ url_for('remove_nomination') }}" method="POST" style="position:absolute; bottom:64px; right:12px;">
+                        <form action="{{ url_for('remove_nomination') }}" method="POST"
+                            style="position:absolute; bottom:64px; right:12px;">
                             <input type="hidden" name="slug" value="{{ movie.SLUG }}">
                             <button class="action-btn remove-nominate-btn">❌ Remove Nomination</button>
                         </form>
@@ -582,13 +659,13 @@
             <h2>Add a Movie</h2>
             <form action="{{ url_for('add_movie') }}" method="post" style="display: contents;">
                 <label for="movie-link">Enter a Letterboxd link:</label>
-                <input name="url" type="text" id="movie-link" placeholder="Enter Letterboxd link..." required/>
+                <input name="url" type="text" id="movie-link" placeholder="Enter Letterboxd link..." required />
 
                 <label for="user-select">Choose a user:</label>
                 <select name="username" id="user-select">
                     <option value="" disabled selected>Select your username</option>
                     {% for username in usernames %}
-                        <option value="{{ username }}">{{ username }}</option>
+                    <option value="{{ username }}">{{ username }}</option>
                     {% endfor %}
                 </select>
 
@@ -601,44 +678,44 @@
     </div>
 
     <!-- Nominate Movie Modal -->
-<div id="nominateModal" class="modal-overlay hidden">
-    <div class="modal">
-        <h2>Nominate Movie</h2>
-        <form id="nominateForm" method="POST" action="{{ url_for('nominate_movie') }}">
-            <input type="hidden" name="slug" id="nominateSlug" />
-            <select name="username" id="nominee-select" required>
-                <option value="" disabled selected>Select your username</option>
-                {% for username in usernames %}
+    <div id="nominateModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>Nominate Movie</h2>
+            <form id="nominateForm" method="POST" action="{{ url_for('nominate_movie') }}">
+                <input type="hidden" name="slug" id="nominateSlug" />
+                <select name="username" id="nominee-select" required>
+                    <option value="" disabled selected>Select your username</option>
+                    {% for username in usernames %}
                     <option value="{{ username }}">{{ username }}</option>
-                {% endfor %}
-            </select>
-            <div class="modal-actions">
-                <button type="button" class="close-btn">Cancel</button>
-                <button type="submit" class="submit-btn">Nominate</button>
-            </div>
-        </form>
+                    {% endfor %}
+                </select>
+                <div class="modal-actions">
+                    <button type="button" class="close-btn">Cancel</button>
+                    <button type="submit" class="submit-btn">Nominate</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
- <!-- Add Vote Modal -->
- <div id="voteModal" class="modal-overlay hidden">
-    <div class="modal">
-        <h2>Vote Movie</h2>
-        <form id="voteForm" method="POST" action="{{ url_for('vote_movie') }}">
-            <input type="hidden" name="slug" id="voteSlug" />
-            <select name="username" id="nominee-select" required>
-                <option value="" disabled selected>Select your username</option>
-                {% for username in usernames %}
+    <!-- Add Vote Modal -->
+    <div id="voteModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>Vote Movie</h2>
+            <form id="voteForm" method="POST" action="{{ url_for('vote_movie') }}">
+                <input type="hidden" name="slug" id="voteSlug" />
+                <select name="username" id="nominee-select" required>
+                    <option value="" disabled selected>Select your username</option>
+                    {% for username in usernames %}
                     <option value="{{ username }}">{{ username }}</option>
-                {% endfor %}
-            </select>
-            <div class="modal-actions">
-                <button type="button" class="close-btn">Cancel</button>
-                <button type="submit" class="submit-btn">Vote</button>
-            </div>
-        </form>
+                    {% endfor %}
+                </select>
+                <div class="modal-actions">
+                    <button type="button" class="close-btn">Cancel</button>
+                    <button type="submit" class="submit-btn">Vote</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
     <!-- Display Votes Modal -->
     <div id="votesModal" class="modal-overlay hidden">
