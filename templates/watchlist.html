@@ -7,134 +7,137 @@
     <title>🎬 Watchlist</title>
     <style>
         /* ==== Global Reset & Viewport Fix ==== */
-html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    overflow-x: hidden;
-    box-sizing: border-box;
-}
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
 
-*, *::before, *::after {
-    box-sizing: inherit;
-}
+        *,
+        *::before,
+        *::after {
+            box-sizing: inherit;
+        }
 
-.viewport-fix {
-    max-width: 100vw;
-    overflow-x: hidden;
-}
+        .viewport-fix {
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
 
-/* ==== Typography & Base Layout ==== */
-body {
-    font-family: Arial, sans-serif;
-    padding: 40px 20px;
-    background-color: #f4f4f4;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
+        /* ==== Typography & Base Layout ==== */
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px 20px;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-/* ==== Header ==== */
-.header {
-    width: 100%;
-    max-width: 95%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 32px;
-}
+        /* ==== Header ==== */
+        .header {
+            width: 100%;
+            max-width: 95%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
 
-.header-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2.2rem;
-    color: #333;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
+        .header-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.2rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-.add-movie-btn {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    font-size: 1.8rem;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-    transition: background-color 0.2s ease;
-}
+        .add-movie-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            transition: background-color 0.2s ease;
+        }
 
-.add-movie-btn:hover {
-    background-color: #0056b3;
-}
+        .add-movie-btn:hover {
+            background-color: #0056b3;
+        }
 
-/* ==== Navbar ==== */
-.navbar {
-    width: 100%;
-    background-color: #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    padding: 12px 20px;
-    display: flex;
-    justify-content: center;
-    margin-bottom: 20px;
-}
+        /* ==== Navbar ==== */
+        .navbar {
+            width: 100%;
+            background-color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
 
-.nav-container {
-    display: flex;
-    gap: 20px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
+        .nav-container {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
 
-.nav-item {
-    text-decoration: none;
-    font-weight: bold;
-    font-size: 1.1rem;
-    color: #555;
-    padding: 8px 12px;
-    border-radius: 6px;
-    transition: background-color 0.2s, color 0.2s;
-}
+        .nav-item {
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #555;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background-color 0.2s, color 0.2s;
+        }
 
-.nav-item:hover {
-    background-color: #f0f0f0;
-    color: #000;
-}
+        .nav-item:hover {
+            background-color: #f0f0f0;
+            color: #000;
+        }
 
-.nav-item.active {
-    background-color: #007bff;
-    color: white;
-}
+        .nav-item.active {
+            background-color: #007bff;
+            color: white;
+        }
 
-/* ==== Logo ==== */
-.logo-container {
-    margin: 24px 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
+        /* ==== Logo ==== */
+        .logo-container {
+            margin: 24px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-.logo {
-    max-width: 60%;
-    object-fit: contain;
-    transition: transform 0.3s ease, opacity 0.3s ease;
-    will-change: transform;
-}
+        .logo {
+            max-width: 60%;
+            object-fit: contain;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            will-change: transform;
+        }
 
-.logo:hover {
-    transform: scale(1.08) rotate(-2deg);
-    opacity: 0.95;
-}
+        .logo:hover {
+            transform: scale(1.08) rotate(-2deg);
+            opacity: 0.95;
+        }
 
-/* ==== Cards ==== */
+        /* ==== Cards ==== */
 
-.status-highlight {
+        .status-highlight {
             font-weight: bold;
             color: #cc7000;
         }
@@ -146,6 +149,7 @@ body {
         .votes {
             color: #333;
         }
+
         .card-nomination {
             background-color: #fff5e6;
             border-left: 4px solid #ffa500;
@@ -156,290 +160,293 @@ body {
             color: #444;
             border-radius: 4px;
         }
-.card-container {
-    width: 100%;
-    max-width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    padding: 0 10px;
-}
 
-.card {
-    width: 100%;
-    box-sizing: border-box;
-}
+        .card-container {
+            width: 100%;
+            max-width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            padding: 0 10px;
+        }
 
-.card-inner {
-    display: flex;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-    flex-wrap: wrap;
-}
+        .card {
+            width: 100%;
+            box-sizing: border-box;
+        }
 
-.card-nominated .card-inner {
-    border-left: 6px solid #ffa500;
-    background-color: #fffdf7;
-    box-shadow: 0 0 16px rgba(255, 165, 0, 0.7);
-    animation: pulse 2.5s ease-in-out;
-}
+        .card-inner {
+            display: flex;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            flex-wrap: wrap;
+        }
 
-.card-img {
-    width: 150px;
-    aspect-ratio: 2 / 3;
-    object-fit: cover;
-}
+        .card-nominated .card-inner {
+            border-left: 6px solid #ffa500;
+            background-color: #fffdf7;
+            box-shadow: 0 0 16px rgba(255, 165, 0, 0.7);
+            animation: pulse 2.5s ease-in-out;
+        }
 
-.card-content {
-    flex: 1;
-    padding: 16px;
-    word-break: break-word;
-}
+        .card-img {
+            width: 150px;
+            aspect-ratio: 2 / 3;
+            object-fit: cover;
+        }
 
-.card-title {
-    font-weight: bold;
-    margin-bottom: 4px;
-    font-size: clamp(1.4rem, 4vw, 1.6rem);
-    text-decoration: none;
-    color: #222;
-}
+        .card-content {
+            flex: 1;
+            padding: 16px;
+            word-break: break-word;
+        }
 
-.card-meta {
-    font-size: 0.9rem;
-    color: #888;
-    margin-bottom: 12px;
-}
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: clamp(1.4rem, 4vw, 1.6rem);
+            text-decoration: none;
+            color: #222;
+        }
 
-.card-description {
-    color: #555;
-}
+        .card-meta {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 12px;
+        }
 
-.card-actions {
-    min-width: 120px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 16px;
-    gap: 12px;
-}
+        .card-description {
+            color: #555;
+        }
 
-/* ==== Buttons ==== */
-.action-btn {
-    padding: 12px 18px;
-    font-size: 1rem;
-    font-weight: bold;
-    border: none;
-    border-radius: 24px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    width: 100%;
-}
+        .card-actions {
+            min-width: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            gap: 12px;
+        }
 
-.nominate-btn {
-    background-color: #007bff;
-    color: white;
-}
+        /* ==== Buttons ==== */
+        .action-btn {
+            padding: 12px 18px;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            width: 100%;
+        }
 
-.nominate-btn:hover {
-    background-color: #0056b3;
-}
+        .nominate-btn {
+            background-color: #007bff;
+            color: white;
+        }
 
-.remove-nominate-btn {
-    background-color: #f44336;
-    color: white;
-}
+        .nominate-btn:hover {
+            background-color: #0056b3;
+        }
 
-.remove-nominate-btn:hover {
-    background-color: #d32f2f;
-}
+        .remove-nominate-btn {
+            background-color: #f44336;
+            color: white;
+        }
 
-.watched-btn {
-    background-color: #28a745;
-    color: white;
-}
+        .remove-nominate-btn:hover {
+            background-color: #d32f2f;
+        }
 
-.watched-btn:hover {
-    background-color: #1e7e34;
-}
+        .watched-btn {
+            background-color: #28a745;
+            color: white;
+        }
 
-.vote-btn {
-    background-color: #ffeb3b;
-    color: #333;
-}
+        .watched-btn:hover {
+            background-color: #1e7e34;
+        }
 
-/* ==== Watched Style ==== */
-.card-watched {
-    opacity: 0.6;
-}
+        .vote-btn {
+            background-color: #ffeb3b;
+            color: #333;
+        }
 
-.card-watched .card-title,
-.card-watched .card-meta {
-    text-decoration: line-through;
-}
+        /* ==== Watched Style ==== */
+        .card-watched {
+            opacity: 0.6;
+        }
 
-.card-watched .card-watched-label {
-    background-color: #e6f4ea;
-    border-left: 4px solid #28a745;
-    padding: 8px 12px;
-    margin-bottom: 12px;
-    font-size: 0.95rem;
-    line-height: 1.4;
-    color: #2f6846;
-    border-radius: 4px;
-}
+        .card-watched .card-title,
+        .card-watched .card-meta {
+            text-decoration: line-through;
+        }
 
-/* ==== Delete Button ==== */
-.delete-btn {
-    position: absolute;
-    top: -12px;
-    right: -12px;
-    width: 32px;
-    height: 32px;
-    background-color: red;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    transition: background-color 0.2s ease;
-    z-index: 1;
-}
+        .card-watched .card-watched-label {
+            background-color: #e6f4ea;
+            border-left: 4px solid #28a745;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            color: #2f6846;
+            border-radius: 4px;
+        }
 
-.delete-btn:hover {
-    background-color: darkred;
-}
+        /* ==== Delete Button ==== */
+        .delete-btn {
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            width: 32px;
+            height: 32px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.2s ease;
+            z-index: 1;
+        }
 
-/* ==== Modal ==== */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.6);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 999;
-}
+        .delete-btn:hover {
+            background-color: darkred;
+        }
 
-.modal {
-    background: white;
-    padding: 24px 20px;
-    border-radius: 12px;
-    max-width: 400px;
-    width: 100%;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    animation: fadeIn 0.3s ease-out;
-    box-sizing: border-box;
-}
+        /* ==== Modal ==== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
 
-.modal h2 {
-    margin-top: 0;
-    font-size: 1.5rem;
-}
+        .modal {
+            background: white;
+            padding: 24px 20px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.3s ease-out;
+            box-sizing: border-box;
+        }
 
-.modal label {
-    display: block;
-    margin: 12px 0 6px;
-    font-weight: bold;
-}
+        .modal h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
 
-.modal input,
-.modal select {
-    width: 100%;
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    margin-bottom: 10px;
-    font-size: 1rem;
-    box-sizing: border-box;
-    word-break: break-word;
-}
+        .modal label {
+            display: block;
+            margin: 12px 0 6px;
+            font-weight: bold;
+        }
 
-.modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 16px;
-}
+        .modal input,
+        .modal select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            word-break: break-word;
+        }
 
-.modal .close-btn,
-.modal .submit-btn {
-    padding: 10px 16px;
-    border: none;
-    border-radius: 6px;
-    font-weight: bold;
-    cursor: pointer;
-}
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 16px;
+        }
 
-.modal .close-btn {
-    background-color: #ccc;
-    color: #333;
-}
+        .modal .close-btn,
+        .modal .submit-btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
 
-.modal .submit-btn {
-    background-color: #007bff;
-    color: white;
-}
+        .modal .close-btn {
+            background-color: #ccc;
+            color: #333;
+        }
 
-/* ==== Misc ==== */
-.badge {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: #ffa500;
-    color: white;
-    padding: 4px 8px;
-    font-weight: bold;
-    font-size: 0.85rem;
-    border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    z-index: 2;
-}
+        .modal .submit-btn {
+            background-color: #007bff;
+            color: white;
+        }
 
-.view-votes-btn {
-    display: none;
-}
+        /* ==== Misc ==== */
+        .badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #ffa500;
+            color: white;
+            padding: 4px 8px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            z-index: 2;
+        }
 
-.hidden {
-    display: none;
-}
+        .view-votes-btn {
+            display: none;
+        }
 
-/* ==== Animations ==== */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
+        .hidden {
+            display: none;
+        }
 
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 rgba(255, 165, 0, 0);
-    }
-    50% {
-        box-shadow: 0 0 24px rgba(255, 165, 0, 0.9);
-    }
-    100% {
-        box-shadow: 0 0 0 rgba(255, 165, 0, 0);
-    }
-}
+        /* Improve nominated card appearance to match base style */
+        .card-nominated .card-inner {
+            border-left: 6px solid #ffa500;
+            background-color: #fffdf7;
+            box-shadow: 0 4px 12px rgba(255, 165, 0, 0.4);
+            /* match shadow strength */
+            border-radius: 8px;
+            padding: 0;
+            /* use the same padding from .card-inner if needed */
+            overflow: hidden;
+            animation: pulse 2.5s ease-in-out;
+        }
 
-/* Responsive stacking layout for smaller screens */
-@media (max-width: 900px) {
+        /* ==== Animations ==== */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Responsive stacking layout for smaller screens */
+        @media (max-width: 900px) {
             .card-inner {
                 flex-direction: row;
                 align-items: stretch;
@@ -498,71 +505,165 @@ body {
             }
         }
 
-/* ==== Mobile ==== */
-@media (max-width: 600px) {
+        /* ==== Mobile ==== */
+        @media (max-width: 600px) {
 
-    /* .logo {
-    max-width: 80%;
-    object-fit: contain;
-    transition: transform 0.3s ease, opacity 0.3s ease;
-    will-change: transform;
-} */
+            .card {
+                margin-bottom: 16px;
+                border-radius: 8px;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+                position: relative;
+            }
 
-    .modal {
-        border-radius: 12px;
-        max-width: none;
-        width: 90%;
-        height: auto;
-        max-height: none;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
+            .card-toggle {
+                width: 100%;
+                background: #f9f9f9;
+                border: none;
+                padding: 16px;
+                font-size: 1.1rem;
+                font-weight: bold;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                cursor: pointer;
+            }
 
-    .card-inner {
-        flex-direction: column;
-    }
+            .card.card-nominated .card-toggle {
+                border-left: 6px solid #ffa500;
+                background-color: #fffdf7;
+                box-shadow: 0 0 16px rgba(255, 165, 0, 0.7);
+            }
 
-    .card-img {
-        width: 100%;
-        height: auto;
-    }
+            .toggle-icon {
+                transition: transform 0.3s ease;
+            }
 
-    .card-actions {
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
+            .card.open .toggle-icon {
+                transform: rotate(180deg);
+            }
 
-    .action-btn {
-        width: 100%;
-    }
+            .card-details {
+                display: none;
+                background: white;
+                padding: 16px;
+            }
 
-    /* Fix: make each card a relative container so buttons stay inside */
-.card {
-    position: relative;
-    width: 100%;
-    box-sizing: border-box;
-}
+            .card.open .card-details {
+                display: block;
+            }
 
-/* Fix: delete button now positions relative to each card, not screen */
-/* .delete-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    z-index: 2; /* stay above content */
-} */
+            .card-inner {
+                display: flex;
+                flex-direction: column;
+            }
 
-/* Improve nominated card appearance to match base style */
-.card-nominated .card-inner {
-    border-left: 6px solid #ffa500;
-    background-color: #fffdf7;
-    box-shadow: 0 4px 12px rgba(255, 165, 0, 0.4); /* match shadow strength */
-    border-radius: 8px;
-    padding: 0; /* use the same padding from .card-inner if needed */
-    overflow: hidden;
-    animation: pulse 2.5s ease-in-out;
-}
+            .card-img {
+                width: 100%;
+                height: auto;
+                border-radius: 8px;
+                margin-bottom: 12px;
+            }
+
+            .card-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                margin-top: 12px;
+            }
+
+            .delete-btn {
+                position: absolute;
+                top: -8px;
+                right: -8px;
+                width: 24px;
+                height: 24px;
+                background-color: red;
+                color: white;
+                border: none;
+                border-radius: 50%;
+                font-size: 18px;
+                font-weight: bold;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+                transition: background-color 0.2s ease;
+                z-index: 1;
+            }
+
+            .delete-btn:hover {
+                background-color: darkred;
+            }
+
+            /* ==== Nominated Movie Overrides ==== */
+
+            .card.card-nominated .modal {
+                border-radius: 0;
+                max-width: none;
+                width: 100%;
+                height: 100%;
+                max-height: none;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+
+            .card.card-nominated .card-inner {
+                flex-direction: column;
+            }
+
+            .card.card-nominated .card-img {
+                width: 100%;
+                height: auto;
+            }
+
+            .card.card-nominated .card-actions {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .card.card-nominated .action-btn {
+                width: 100%;
+            }
+
+            /* Hide toggle for nominated */
+            .card.card-nominated .card-toggle {
+                display: none !important;
+            }
+
+            .card.card-nominated .card-details {
+                display: block !important;
+                padding: 0;
+            }
+        }
+
+        /* DESKTOP: Make sure everything is always visible */
+        @media (min-width: 601px) {
+            .card-toggle {
+                display: none;
+            }
+
+            .card-details {
+                display: block !important;
+                padding: 0;
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 rgba(255, 165, 0, 0);
+            }
+
+            50% {
+                box-shadow: 0 0 24px rgba(255, 165, 0, 0.9);
+            }
+
+            100% {
+                box-shadow: 0 0 0 rgba(255, 165, 0, 0);
+            }
+        }
     </style>
 </head>
 
@@ -584,70 +685,69 @@ body {
         {% for movie in movies %}
         <div
             class="card {% if movie.IS_WATCHED %}card-watched{% endif %} {% if movie.IS_NOMINATED %}card-nominated{% endif %}">
-            <form action="{{ url_for('delete_movie', movie_slug=movie.SLUG) }}" method="POST"
-                style="display: contents;">
-                <button class="delete-btn">×</button>
-            </form>
-            <div class="card-inner">
-                <img class="card-img" src="{{ movie.POSTER }}" alt="{{ movie.TITLE }} Poster" />
-                <div class="card-content">
-                    <a class="card-title" href="{{ movie.URL }}" target="_blank">{{ movie.TITLE }}</a>
-                    <div class="card-meta"><strong>{{ movie.ADDED_BY }}</strong> - {{ movie.DATE_ADDED }}</div>
-                    {% if movie.IS_NOMINATED %}
-                    <div class="card-nomination">
-                        🎯 <span class="status-highlight">Nominated</span><br />
-                        <span class="nominator">Nominated by <strong>{{ movie.NOMINATED_BY }}</strong></span><br />
-                        <div class="votes-container">
-                            {% if movie.VOTED_BY %}
-                            <span class="votes">
-                                <div class="meta">
-                                    Votes:
-                                    <strong>{{ movie.VOTED_BY | join(", ") }}</strong>
-                                </div>
+                <button class="delete-btn" data-slug="{{ movie.SLUG }}">×</button>
+            <button class="card-toggle">
+                <span class="card-title">{{ movie.TITLE }}</span>
+                <span class="toggle-icon">▼</span>
+            </button>
+
+            <div class="card-details">
+
+                <div class="card-inner">
+                    <img class="card-img" src="{{ movie.POSTER }}" alt="{{ movie.TITLE }} Poster" />
+                    <div class="card-content">
+                        <a class="card-title" href="{{ movie.URL }}" target="_blank">{{ movie.TITLE }}</a>
+                        <div class="card-meta"><strong>{{ movie.ADDED_BY }}</strong> - {{ movie.DATE_ADDED }}</div>
+
+                        {% if movie.IS_NOMINATED %}
+                        <div class="card-nomination">
+                            🎯 <span class="status-highlight">Nominated</span><br />
+                            <span class="nominator">Nominated by <strong>{{ movie.NOMINATED_BY }}</strong></span><br />
+                            <div class="votes-container">
+                                {% if movie.VOTED_BY %}
+                                <span class="votes">
+                                    <div class="meta">
+                                        Votes:
+                                        <strong>{{ movie.VOTED_BY | join(", ") }}</strong>
+                                    </div>
+                                </span>
                                 {% endif %}
-                            </span>
-                            <button class="view-votes-btn hidden-on-large">Click to see votes</button>
+                                <button class="view-votes-btn hidden-on-large">Click to see votes</button>
+                            </div>
                         </div>
+                        {% endif %}
+
+                        {% if movie.IS_WATCHED %}
+                        <div class="card-watched-label">
+                            ✅ Watched
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
-                    {% if movie.IS_WATCHED %}
-                    <div class="card-watched-label">
-                        ✅ Watched
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="card-actions">
 
-                    {% if not movie.IS_WATCHED and not movie.IS_NOMINATED %}
-                    <button class="action-btn nominate-btn" data-slug="{{ movie.SLUG }}">🏆 Nominate</button>
-                    {% elif movie.IS_NOMINATED %}
+                    <div class="card-actions">
+                        {% if not movie.IS_WATCHED and not movie.IS_NOMINATED %}
+                        <button class="action-btn nominate-btn" data-slug="{{ movie.SLUG }}">🏆 Nominate</button>
+                        {% elif movie.IS_NOMINATED %}
+                        <button class="action-btn vote-btn" data-slug="{{ movie.SLUG }}">🗳️ Vote</button>
 
-                    <!-- Vote Button -->
-                    <button class="action-btn vote-btn" data-slug="{{ movie.SLUG }}">
-                        🗳️ Vote
-                    </button>
-
-                    <form action="{{ url_for('remove_nomination') }}" method="POST" style="display: contents;">
-                        <!-- <input type="hidden" name="slug" value="{{ movie.SLUG }}"> -->
-                        <form action="{{ url_for('remove_nomination') }}" method="POST"
-                            style="position:absolute; bottom:64px; right:12px;">
+                        <form action="{{ url_for('remove_nomination') }}" method="POST" style="display: contents;">
                             <input type="hidden" name="slug" value="{{ movie.SLUG }}">
                             <button class="action-btn remove-nominate-btn">❌ Remove Nomination</button>
                         </form>
-                    </form>
-                    {% endif %}
+                        {% endif %}
 
-                    {% if not movie.IS_WATCHED %}
-                    <form action="{{ url_for('mark_watched', movie_slug=movie.SLUG) }}" method="POST"
-                        style="display: contents;">
-                        <button type="submit" class="action-btn watched-btn">🎬 Watched</button>
-                    </form>
-                    {% else %}
-                    <form action="{{ url_for('mark_unwatched', movie_slug=movie.SLUG) }}" method="POST"
-                        style="display: contents;">
-                        <button type="submit" class="action-btn watched-btn">Mark as Unwatched</button>
-                    </form>
-                    {% endif %}
+                        {% if not movie.IS_WATCHED %}
+                        <form action="{{ url_for('mark_watched', movie_slug=movie.SLUG) }}" method="POST"
+                            style="display: contents;">
+                            <button type="submit" class="action-btn watched-btn">🎬 Watched</button>
+                        </form>
+                        {% else %}
+                        <form action="{{ url_for('mark_unwatched', movie_slug=movie.SLUG) }}" method="POST"
+                            style="display: contents;">
+                            <button type="submit" class="action-btn watched-btn">Mark as Unwatched</button>
+                        </form>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -727,17 +827,58 @@ body {
             </div>
         </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="confirmModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>Confirm Deletion</h2>
+            <p>Are you sure you want to delete this movie?</p>
+            <div class="modal-actions">
+                <!-- <form id="nominateForm" method="POST" action="{{ url_for('nominate_movie') }}">
+                    <input type="hidden" name="slug" id="nominateSlug" />
+                    <select name="username" id="nominee-select" required>
+                        <option value="" disabled selected>Select your username</option>
+                        {% for username in usernames %}
+                        <option value="{{ username }}">{{ username }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="modal-actions">
+                        <button type="button" class="close-btn">Cancel</button>
+                        <button type="submit" class="submit-btn">Nominate</button>
+                    </div>
+                </form> -->
+
+                <form action="{{ url_for('delete_movie') }}" method="POST"
+                style="display: contents;">
+                <input type="hidden" name="slug" id="deleteSlug" />
+                <div class="modal-actions">
+                    <button type="button" class="close-btn">Cancel</button>
+                    <button type="submit" class="submit-btn">Delete</button>
+                </div>
+            </form>
+            </div>
+        </div>
+    </div>
     <script>
         const addModal = document.getElementById("addModal");
         const nominateModal = document.getElementById("nominateModal");
+        const voteModal = document.getElementById("voteModal");
+        const votesModal = document.getElementById("votesModal");
+        const confirmModal = document.getElementById("confirmModal");
+
         const addBtn = document.querySelector(".add-movie-btn");
         const nominateBtns = document.querySelectorAll(".nominate-btn");
-        const closeBtns = document.querySelectorAll(".close-btn");
-        const nominateSlugInput = document.getElementById("nominateSlug");
-
-        const voteModal = document.getElementById("voteModal");
         const voteBtns = document.querySelectorAll(".vote-btn");
+        const viewVotesBtns = document.querySelectorAll(".view-votes-btn");
+        const deleteBtns = document.querySelectorAll(".delete-btn");
+
+        const closeBtns = document.querySelectorAll(".close-btn");
+
+        const nominateSlugInput = document.getElementById("nominateSlug");
         const voteSlugInput = document.getElementById("voteSlug");
+        const confirmForm = document.getElementById("confirmForm");
+
+        const deleteSlugInput = document.getElementById("deleteSlug");
 
         // Open the Add Movie Modal
         addBtn.addEventListener("click", () => {
@@ -747,73 +888,76 @@ body {
         // Open the Nominate Movie Modal
         nominateBtns.forEach(btn => {
             btn.addEventListener("click", () => {
-                const movieSlug = btn.getAttribute("data-slug"); // Get the slug from the button's data attribute
-                nominateSlugInput.value = movieSlug; // Set the slug in the hidden input field
-                nominateModal.classList.remove("hidden"); // Show the modal
+                const movieSlug = btn.getAttribute("data-slug");
+                nominateSlugInput.value = movieSlug;
+                nominateModal.classList.remove("hidden");
             });
         });
 
         // Open the Vote Movie Modal
         voteBtns.forEach(btn => {
             btn.addEventListener("click", () => {
-                const movieSlug = btn.getAttribute("data-slug"); // Get the slug from the button's data attribute
-                voteSlugInput.value = movieSlug; // Set the slug in the hidden input field
-                voteModal.classList.remove("hidden"); // Show the modal
+                const movieSlug = btn.getAttribute("data-slug");
+                voteSlugInput.value = movieSlug;
+                voteModal.classList.remove("hidden");
             });
         });
 
-        // Close modals when clicking close or outside
-        closeBtns.forEach(btn => {
-            btn.addEventListener("click", () => {
-                addModal.classList.add("hidden");
-                nominateModal.classList.add("hidden");
-                voteModal.classList.add("hidden");
-            });
-        });
-
-        window.addEventListener("click", (e) => {
-            if (e.target === addModal || e.target === nominateModal) {
-                addModal.classList.add("hidden");
-                nominateModal.classList.add("hidden");
-            }
-        });
-
-        const votesModal = document.getElementById("votesModal");
-        const viewVotesBtns = document.querySelectorAll(".view-votes-btn");
-
+        // Open the View Votes Modal
         viewVotesBtns.forEach(btn => {
             btn.addEventListener("click", () => {
                 votesModal.classList.remove("hidden");
             });
         });
 
-        // Add this to your close button logic if not already covered
-        closeBtns.forEach(btn => {
-            btn.addEventListener("click", () => {
-                votesModal.classList.add("hidden");
+        // Open the Delete Confirmation Modal
+        deleteBtns.forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                // e.preventDefault();
+                // const form = btn.closest("form");
+                // const action = form.getAttribute("action");
+                // confirmForm.setAttribute("action", action);
+                // confirmModal.classList.remove("hidden");
+                
+                const movieSlug = btn.getAttribute("data-slug");
+                deleteSlugInput.value = movieSlug;
+                confirmModal.classList.remove("hidden");
+                console.log(movieSlug);
             });
         });
 
-        window.addEventListener("click", (e) => {
-            if (e.target === votesModal) {
+        // Close modals when clicking close button
+        closeBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                addModal.classList.add("hidden");
+                nominateModal.classList.add("hidden");
+                voteModal.classList.add("hidden");
                 votesModal.classList.add("hidden");
-            }
+                confirmModal.classList.add("hidden");
+            });
         });
+
+        // Close modals when clicking outside
+        window.addEventListener("click", (e) => {
+            if (e.target === addModal) addModal.classList.add("hidden");
+            if (e.target === nominateModal) nominateModal.classList.add("hidden");
+            if (e.target === voteModal) voteModal.classList.add("hidden");
+            if (e.target === votesModal) votesModal.classList.add("hidden");
+            if (e.target === confirmModal) confirmModal.classList.add("hidden");
+        });
+
         function adjustFontSizeBasedOnLength() {
             const titleElements = document.querySelectorAll('.card-title');
             const screenWidth = window.innerWidth;
-            console.log(screenWidth)
 
             titleElements.forEach(titleElement => {
                 const titleText = titleElement.innerText;
 
-                // If screen is larger than 700px, always use 1.4rem
                 if (screenWidth > 900) {
                     titleElement.style.fontSize = '1.4rem';
                     return;
                 }
 
-                // Below 700px: calculate font size based on text length
                 let fontSize = 1.4;
 
                 if (titleText.length > 60) {
@@ -828,9 +972,17 @@ body {
             });
         }
 
-        // Trigger on load and resize
+        // Font size adjustment
         window.addEventListener('load', adjustFontSizeBasedOnLength);
         window.addEventListener('resize', adjustFontSizeBasedOnLength);
+
+        // Toggle card open/close
+        document.querySelectorAll('.card-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const card = btn.closest('.card');
+                card.classList.toggle('open');
+            });
+        });
     </script>
 </body>
 

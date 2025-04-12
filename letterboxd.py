@@ -231,8 +231,9 @@ def add_movie():
 
     return redirect(url_for('watchlist'))
 
-@app.route('/delete_movie/<movie_slug>', methods=['POST'])
-def delete_movie(movie_slug):
+@app.route('/delete_movie', methods=['POST'])
+def delete_movie():
+    movie_slug = request.form.get("slug")
     # Load your Google Sheets or database
     sheet = get_watchlist_sheet()  # Assuming `get_sheet()` is a function to get your Google Sheets or data source
     
