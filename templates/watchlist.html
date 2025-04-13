@@ -508,6 +508,10 @@
         /* ==== Mobile ==== */
 @media (max-width: 600px) {
 
+    .not-nom {
+        display: none;
+    }
+
 .card {
     margin-bottom: 16px;
     border-radius: 8px;
@@ -718,6 +722,8 @@
                 <div class="card-inner">
                     {% if movie.IS_NOMINATED %}
                     <img class="card-img" src="{{ movie.POSTER }}" alt="{{ movie.TITLE }} Poster" />
+                    {% elif not movie.IS_NOMINATED %}
+                    <img class="card-img not-nom" src="{{ movie.POSTER }}" alt="{{ movie.TITLE }} Poster" />
                     {% endif %}
                     <div class="card-content">
                         <a class="card-title" href="{{ movie.URL }}" target="_blank">{{ movie.TITLE }}</a>
@@ -729,12 +735,12 @@
                             <span class="nominator">Nominated by <strong>{{ movie.NOMINATED_BY }}</strong></span><br />
                             <div class="votes-container">
                                 {% if movie.VOTED_BY %}
-                                <span class="votes">
+                                <!-- <span class="votes">
                                     <div class="meta">
                                         Votes:
                                         <strong>{{ movie.VOTED_BY | join(", ") }}</strong>
                                     </div>
-                                </span>
+                                </span> -->
                                 {% endif %}
                                 <!-- <button class="view-votes-btn hidden-on-large">Click to see votes</button> -->
                                 {% if movie.VOTED_BY %}
