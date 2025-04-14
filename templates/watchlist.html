@@ -142,6 +142,11 @@
             color: #cc7000;
         }
 
+        .status-highlight-selected {
+            font-weight: bold;
+            color: #00cc70;
+        }
+
         .nominator {
             font-style: italic;
         }
@@ -153,6 +158,17 @@
         .card-nomination {
             background-color: #fff5e6;
             border-left: 4px solid #ffa500;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            color: #444;
+            border-radius: 4px;
+        }
+
+        .card-select {
+            background-color: #e6f4ea;
+            border-left: 4px solid #5eff00;
             padding: 8px 12px;
             margin-bottom: 12px;
             font-size: 0.95rem;
@@ -192,16 +208,42 @@
             animation: pulse 2.5s ease-in-out;
         }
 
+        /* .card-selected .card-inner {
+            border-left: 6px solid #adecb3;
+            background-color: #fffdf7;
+            box-shadow: 0 0 16px rgba(9, 219, 107, 0.7);
+            animation: pulse-selected 2.5s ease-in-out;
+        }
+
+        .card-selected {
+            background-color: #e6f4ea;
+            background-color: #fff5e6;
+            border-left: 4px solid #ffa500;
+            border-left: 4px solid #5eff00;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            color: #444;
+            border-radius: 4px;
+        } */
+
         .card-img {
+            flex-shrink: 0;
             width: 150px;
+            height: auto;
             aspect-ratio: 2 / 3;
             object-fit: cover;
+            display: block;
         }
 
         .card-content {
             flex: 1;
             padding: 16px;
-            word-break: break-word;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow-wrap: break-word;
         }
 
         .card-title {
@@ -273,6 +315,11 @@
 
         .vote-btn {
             background-color: #ffeb3b;
+            color: #333;
+        }
+
+        .winning-btn {
+            background-color: #5fde74;
             color: #333;
         }
 
@@ -433,7 +480,50 @@
             animation: pulse 2.5s ease-in-out;
         }
 
+        /* Improve nominated card appearance to match base style */
+        .card-selected .card-inner {
+            border-left: 4px solid #5eff00;
+            background-color: #fffdf7;
+            box-shadow: 0 0 16px rgba(9, 219, 107, 0.7);
+            /* match shadow strength */
+            border-radius: 8px;
+            padding: 0;
+            /* use the same padding from .card-inner if needed */
+            overflow: hidden;
+            animation: pulse-selected 2.5s ease-in-out;
+        }
+
+        /* Label for selected movie */
+        .card-selected-label {
+            background-color: #4caf50;
+            /* Green background */
+            color: white;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            font-weight: bold;
+            border-radius: 4px;
+            text-align: center;
+        }
+
         /* ==== Animations ==== */
+
+        /* Pulse animation for selected card */
+        @keyframes pulse-selected {
+            0% {
+                box-shadow: 0 0 0 rgba(76, 175, 80, 0);
+            }
+
+            50% {
+                box-shadow: 0 0 24px rgba(76, 175, 80, 0.9);
+            }
+
+            100% {
+                box-shadow: 0 0 0 rgba(76, 175, 80, 0);
+            }
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -466,9 +556,12 @@
             }
 
             .card-content {
-                padding: 12px;
-                font-size: 0.9rem;
                 flex: 1;
+                padding: 16px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                overflow-wrap: break-word;
             }
 
             .card-actions {
@@ -507,161 +600,166 @@
         }
 
         /* ==== Mobile ==== */
-@media (max-width: 600px) {
+        @media (max-width: 600px) {
 
-    .not-nom {
-        display: none;
-    }
+            .not-nom {
+                display: none;
+            }
 
-.card {
-    margin-bottom: 16px;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    position: relative;
-}
+            .card {
+                margin-bottom: 16px;
+                border-radius: 8px;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+                position: relative;
+            }
 
-.card-toggle {
-    width: 100%;
-    background: #f9f9f9;
-    border: none;
-    padding: 0;
-    font-size: 1rem;
-    display: flex;
-    align-items: stretch;  /* ⬅️ important: stretch children to match toggle height */
-    gap: 12px;
-    cursor: pointer;
-    height: 100px;
-}
+            .card-toggle {
+                width: 100%;
+                background: #f9f9f9;
+                border: none;
+                padding: 0;
+                font-size: 1rem;
+                display: flex;
+                align-items: stretch;
+                /* ⬅️ important: stretch children to match toggle height */
+                gap: 12px;
+                cursor: pointer;
+                height: 100px;
+            }
 
-.toggle-poster {
-    height: 100%;          /* ⬅️ fills the height of .card-toggle */
-    width: auto;
-    object-fit: cover;
-    display: block;
-    flex-shrink: 0;
-}
+            .toggle-poster {
+                height: 100%;
+                /* ⬅️ fills the height of .card-toggle */
+                width: auto;
+                object-fit: cover;
+                display: block;
+                flex-shrink: 0;
+            }
 
-.toggle-content {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-}
-.card-title {
-    font-size: 1rem;
-    font-weight: 600;
-    white-space: normal;        /* allow wrapping */
-    overflow-wrap: break-word;  /* break long words if needed */
-    line-height: 1.3;
-}
+            .toggle-content {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 12px;
+            }
 
-.toggle-icon {
-    transition: transform 0.3s ease;
-    font-size: 1.2rem;
-    flex-shrink: 0;
-}
+            .card-title {
+                font-size: 1rem;
+                font-weight: 600;
+                white-space: normal;
+                /* allow wrapping */
+                overflow-wrap: break-word;
+                /* break long words if needed */
+                line-height: 1.3;
+            }
 
-.card.open .toggle-icon {
-    transform: rotate(180deg);
-}
+            .toggle-icon {
+                transition: transform 0.3s ease;
+                font-size: 1.2rem;
+                flex-shrink: 0;
+            }
 
-.card-details {
-    display: none;
-    background: white;
-    padding: 16px;
-}
+            .card.open .toggle-icon {
+                transform: rotate(180deg);
+            }
 
-.card.open .card-details {
-    display: block;
-}
+            .card-details {
+                display: none;
+                background: white;
+                padding: 16px;
+            }
 
-.card-inner {
-    display: flex;
-    flex-direction: column;
-}
+            .card.open .card-details {
+                display: block;
+            }
 
-.card-img {
-    width: 100%;
-    height: auto;
-    border-radius: 8px;
-    margin-bottom: 12px;
-}
+            .card-inner {
+                display: flex;
+                flex-direction: column;
+            }
 
-.card-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    /* margin-top: 12px; */
-}
+            .card-img {
+                width: 100%;
+                height: auto;
+                border-radius: 8px;
+                margin-bottom: 12px;
+            }
 
-.delete-btn {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    width: 24px;
-    height: 24px;
-    background-color: red;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    transition: background-color 0.2s ease;
-    z-index: 1;
-}
+            .card-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                /* margin-top: 12px; */
+            }
 
-.delete-btn:hover {
-    background-color: darkred;
-}
+            .delete-btn {
+                position: absolute;
+                top: -8px;
+                right: -8px;
+                width: 24px;
+                height: 24px;
+                background-color: red;
+                color: white;
+                border: none;
+                border-radius: 50%;
+                font-size: 18px;
+                font-weight: bold;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+                transition: background-color 0.2s ease;
+                z-index: 1;
+            }
 
-/* ==== Nominated Movie Overrides ==== */
+            .delete-btn:hover {
+                background-color: darkred;
+            }
 
-.card.card-nominated .modal {
-    border-radius: 0;
-    max-width: none;
-    width: 100%;
-    height: 100%;
-    max-height: none;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
+            /* ==== Nominated Movie Overrides ==== */
 
-.card.card-nominated .card-inner {
-    flex-direction: column;
-}
+            .card.card-nominated .modal {
+                border-radius: 0;
+                max-width: none;
+                width: 100%;
+                height: 100%;
+                max-height: none;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
 
-.card.card-nominated .card-img {
-    width: 100%;
-    height: auto;
-}
+            .card.card-nominated .card-inner {
+                flex-direction: column;
+            }
 
-.card.card-nominated .card-actions {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 8px;
-}
+            .card.card-nominated .card-img {
+                width: 100%;
+                height: auto;
+            }
 
-.card.card-nominated .action-btn {
-    width: 100%;
-}
+            .card.card-nominated .card-actions {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
 
-/* Hide toggle for nominated */
-.card.card-nominated .card-toggle {
-    display: none !important;
-}
+            .card.card-nominated .action-btn {
+                width: 100%;
+            }
 
-.card.card-nominated .card-details {
-    display: block !important;
-    padding: 0;
-}
-}
+            /* Hide toggle for nominated */
+            .card.card-nominated .card-toggle {
+                display: none !important;
+            }
+
+            .card.card-nominated .card-details {
+                display: block !important;
+                padding: 0;
+            }
+        }
 
         /* DESKTOP: Make sure everything is always visible */
         @media (min-width: 601px) {
@@ -669,10 +767,10 @@
                 display: none;
             }
 
-            .card-details {
+            /* .card-details {
                 display: block !important;
                 padding: 0;
-            }
+            } */
         }
 
         @keyframes pulse {
@@ -708,15 +806,15 @@
     <div class="card-container">
         {% for movie in movies %}
         <div
-            class="card {% if movie.IS_WATCHED %}card-watched{% endif %} {% if movie.IS_NOMINATED %}card-nominated{% endif %}">
-                <button class="delete-btn" data-slug="{{ movie.SLUG }}">×</button>
-                <button class="card-toggle">
-                    <img class="toggle-poster" src="{{ movie.POSTER }}" alt="{{ movie.title }}">
-                    <div class="toggle-content">
-                        <span class="card-title">{{ movie.TITLE }}</span>
-                        <span class="toggle-icon">⌄</span>
-                    </div>
-                </button>
+            class="card {% if movie.IS_WATCHED %}card-watched{% endif %} {% if movie.IS_NOMINATED %}card-nominated{% endif %}{% if movie.IS_SELECTED %}card-selected{% endif %}">
+            <button class="delete-btn" data-slug="{{ movie.SLUG }}">×</button>
+            <button class="card-toggle">
+                <img class="toggle-poster" src="{{ movie.POSTER }}" alt="{{ movie.title }}">
+                <div class="toggle-content">
+                    <span class="card-title">{{ movie.TITLE }}</span>
+                    <span class="toggle-icon">⌄</span>
+                </div>
+            </button>
 
             <div class="card-details">
 
@@ -727,6 +825,7 @@
                     <img class="card-img not-nom" src="{{ movie.POSTER }}" alt="{{ movie.TITLE }} Poster" />
                     {% endif %}
                     <div class="card-content">
+                        <!-- <img class="card-img" src="{{ movie.POSTER }}" alt="{{ movie.TITLE }} Poster" /> -->
                         <a class="card-title" href="{{ movie.URL }}" target="_blank">{{ movie.TITLE }}</a>
                         <div class="card-meta"><strong>{{ movie.ADDED_BY }}</strong> - {{ movie.DATE_ADDED }}</div>
 
@@ -745,12 +844,26 @@
                                 {% endif %}
                                 <!-- <button class="view-votes-btn hidden-on-large">Click to see votes</button> -->
                                 {% if movie.VOTED_BY %}
-                         <div class="meta">
-                             Votes: 
-                             <strong>{{ movie.VOTED_BY | join(", ") }}</strong>
-                         </div>
-                     {% endif %}
+                                <div class="meta">
+                                    Votes:
+                                    <strong>{{ movie.VOTED_BY | join(", ") }}</strong>
+                                </div>
+                                {% endif %}
                             </div>
+                        </div>
+                        {% endif %}
+                        {% if movie.IS_SELECTED %}
+                        <div class="card-select">
+                            ✅ <span class="status-highlight-selected">Won vote</span><br />
+                            <div class="votes-container">
+                                {% if movie.VOTED_BY %}
+                                <div class="meta">
+                                    Votes:
+                                    <strong>{{ movie.VOTED_BY | join(", ") }}</strong>
+                                </div>
+                                {% endif %}
+                            </div>
+
                         </div>
                         {% endif %}
 
@@ -762,7 +875,13 @@
                     </div>
 
                     <div class="card-actions">
-                        {% if not movie.IS_WATCHED and not movie.IS_NOMINATED %}
+                        {% if not movie.IS_WATCHED and not movie.IS_NOMINATED and movie.IS_SELECTED %}
+                        <!-- <button class="action-btn nominate-btn" data-slug="{{ movie.SLUG }}">✅ Complete</button> -->
+                        <form action="{{ url_for('mark_watched', movie_slug=movie.SLUG) }}" method="POST"
+                            style="display: contents;">
+                            <button type="submit" class="action-btn watched-btn">✅ Complete</button>
+                        </form>
+                        {% elif not movie.IS_WATCHED and not movie.IS_NOMINATED and not movie.IS_SELECTED %}
                         <button class="action-btn nominate-btn" data-slug="{{ movie.SLUG }}">🏆 Nominate</button>
                         {% elif movie.IS_NOMINATED %}
                         <button class="action-btn vote-btn" data-slug="{{ movie.SLUG }}">🗳️ Vote</button>
@@ -771,13 +890,17 @@
                             <input type="hidden" name="slug" value="{{ movie.SLUG }}">
                             <button class="action-btn remove-nominate-btn">❌ Remove Nomination</button>
                         </form>
+                        <button class="action-btn winning-btn" data-slug="{{ movie.SLUG }}">✅ Winning
+                            Nomination</button>
                         {% endif %}
 
                         {% if not movie.IS_WATCHED %}
+                        {% if not movie.IS_SELECTED %}
                         <form action="{{ url_for('mark_watched', movie_slug=movie.SLUG) }}" method="POST"
                             style="display: contents;">
                             <button type="submit" class="action-btn watched-btn">🎬 Watched</button>
                         </form>
+                        {% endif %}
                         {% else %}
                         <form action="{{ url_for('mark_unwatched', movie_slug=movie.SLUG) }}" method="POST"
                             style="display: contents;">
@@ -871,49 +994,55 @@
             <h2>Confirm Deletion</h2>
             <p>Are you sure you want to delete this movie?</p>
             <div class="modal-actions">
-                <!-- <form id="nominateForm" method="POST" action="{{ url_for('nominate_movie') }}">
-                    <input type="hidden" name="slug" id="nominateSlug" />
-                    <select name="username" id="nominee-select" required>
-                        <option value="" disabled selected>Select your username</option>
-                        {% for username in usernames %}
-                        <option value="{{ username }}">{{ username }}</option>
-                        {% endfor %}
-                    </select>
+                <form action="{{ url_for('delete_movie') }}" method="POST" style="display: contents;">
+                    <input type="hidden" name="slug" id="deleteSlug" />
                     <div class="modal-actions">
                         <button type="button" class="close-btn">Cancel</button>
-                        <button type="submit" class="submit-btn">Nominate</button>
+                        <button type="submit" class="submit-btn">Delete</button>
                     </div>
-                </form> -->
-
-                <form action="{{ url_for('delete_movie') }}" method="POST"
-                style="display: contents;">
-                <input type="hidden" name="slug" id="deleteSlug" />
-                <div class="modal-actions">
-                    <button type="button" class="close-btn">Cancel</button>
-                    <button type="submit" class="submit-btn">Delete</button>
-                </div>
-            </form>
+                </form>
             </div>
         </div>
     </div>
+
+    <!-- Winning Movie Modal -->
+    <div id="confirmWinningModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>Confirm Selection</h2>
+            <p>Are you sure you want to select this as the winning movie?</p>
+            <div class="modal-actions">
+                <form action="{{ url_for('winning_movie') }}" method="POST" style="display: contents;">
+                    <input type="hidden" name="slug" id="winningSlug" />
+                    <div class="modal-actions">
+                        <button type="button" class="close-btn">Cancel</button>
+                        <button type="submit" class="submit-btn">Confirm</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         const addModal = document.getElementById("addModal");
         const nominateModal = document.getElementById("nominateModal");
         const voteModal = document.getElementById("voteModal");
         const votesModal = document.getElementById("votesModal");
         const confirmModal = document.getElementById("confirmModal");
+        const winningModal = document.getElementById("confirmWinningModal");
 
         const addBtn = document.querySelector(".add-movie-btn");
         const nominateBtns = document.querySelectorAll(".nominate-btn");
         const voteBtns = document.querySelectorAll(".vote-btn");
         const viewVotesBtns = document.querySelectorAll(".view-votes-btn");
         const deleteBtns = document.querySelectorAll(".delete-btn");
+        const winningBtns = document.querySelectorAll(".winning-btn");
 
         const closeBtns = document.querySelectorAll(".close-btn");
 
         const nominateSlugInput = document.getElementById("nominateSlug");
         const voteSlugInput = document.getElementById("voteSlug");
         const confirmForm = document.getElementById("confirmForm");
+        const winningSlugInput = document.getElementById("winningSlug");
 
         const deleteSlugInput = document.getElementById("deleteSlug");
 
@@ -940,6 +1069,15 @@
             });
         });
 
+        // Open the Winning Movie Modal
+        winningBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const movieSlug = btn.getAttribute("data-slug");
+                winningSlugInput.value = movieSlug;
+                winningModal.classList.remove("hidden");
+            });
+        });
+
         // Open the View Votes Modal
         viewVotesBtns.forEach(btn => {
             btn.addEventListener("click", () => {
@@ -950,12 +1088,6 @@
         // Open the Delete Confirmation Modal
         deleteBtns.forEach(btn => {
             btn.addEventListener("click", (e) => {
-                // e.preventDefault();
-                // const form = btn.closest("form");
-                // const action = form.getAttribute("action");
-                // confirmForm.setAttribute("action", action);
-                // confirmModal.classList.remove("hidden");
-                
                 const movieSlug = btn.getAttribute("data-slug");
                 deleteSlugInput.value = movieSlug;
                 confirmModal.classList.remove("hidden");
@@ -971,6 +1103,7 @@
                 voteModal.classList.add("hidden");
                 votesModal.classList.add("hidden");
                 confirmModal.classList.add("hidden");
+                winningModal.classList.add("hidden");
             });
         });
 
@@ -981,6 +1114,7 @@
             if (e.target === voteModal) voteModal.classList.add("hidden");
             if (e.target === votesModal) votesModal.classList.add("hidden");
             if (e.target === confirmModal) confirmModal.classList.add("hidden");
+            if (e.target === winningModal) winningModal.classList.add("hidden");
         });
 
         function adjustFontSizeBasedOnLength() {
