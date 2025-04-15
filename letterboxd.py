@@ -147,31 +147,64 @@ def parse_movie():
 
 @app.route('/watchlist')
 def watchlist():
-    sheet = get_watchlist_sheet()
-    records = sheet.get_all_records()
+    # Load the Watchlist and Selected sheets
+    watchlist_sheet = get_watchlist_sheet()
+    selected_sheet = get_selected_sheet()
 
-    user_sheet = get_users_sheet() 
-    usernames = [row[0] for row in user_sheet.get_all_values()[1:]] 
+    # Get all records from the Watchlist sheet
+    watchlist_records = watchlist_sheet.get_all_records()
 
-    # Normalize boolean fields (optional)
-    for row in records:
+    # Get all records from the Selected sheet
+    selected_records = selected_sheet.get_all_records()
+
+    # Normalize boolean fields in the Watchlist
+    for row in watchlist_records:
         row["IS_WATCHED"] = str(row.get("IS_WATCHED", "")).upper() == "TRUE"
         row["IS_NOMINATED"] = str(row.get("IS_NOMINATED", "")).upper() == "TRUE"
+        row["IS_SELECTED"] = str(row.get("IS_SELECTED", "")).upper() == "TRUE"
         row["VOTED_BY"] = row.get("VOTED_BY", "").split(",") if row.get("VOTED_BY") else []
-        print(row["VOTED_BY"])
 
-    # Sort records so IS_WATCHED == FALSE appear first
-    sorted_records = sorted(
-    records,
-    key=lambda x: (
-        not x["IS_SELECTED"],   # Selected first (False comes before True)
-        not x["IS_NOMINATED"],  # Nominated next (False comes before True)
-        x["IS_WATCHED"]         # Unwatched before watched (False comes before True)
+    # Normalize fields in the Selected sheet
+    for row in selected_records:
+        row["IS_WATCHED"] = True  # All movies in the Selected tab are considered watched
+        row["WATCH_DATE"] = datetime.strptime(row.get("WATCHED_DATE", ""), '%m/%d/%Y') if row.get("WATCHED_DATE") else None
+
+    # Find the movie in the Watchlist where IS_SELECTED = TRUE
+    selected_movie = next((row for row in watchlist_records if row["IS_SELECTED"]), None)
+
+    # Remove duplicates: Exclude movies from Watchlist that are already in Selected
+    selected_slugs = {row["SLUG"] for row in selected_records}
+    filtered_watchlist_records = [row for row in watchlist_records if row["SLUG"] not in selected_slugs]
+
+    # Sort the Nominated records from the Watchlist
+    sorted_nominated_records = sorted(
+        [row for row in filtered_watchlist_records if row["IS_NOMINATED"]],
+        key=lambda x: x["DATE_ADDED"]  # Sort by date added (optional)
     )
-)   
 
+    # Sort the remaining records (not nominated and not watched)
+    sorted_remaining_records = sorted(
+        [row for row in filtered_watchlist_records if not row["IS_NOMINATED"] and not row["IS_WATCHED"]],
+        key=lambda x: x["DATE_ADDED"]  # Sort by date added (optional)
+    )
 
-    return render_template("watchlist.html", movies=sorted_records, usernames=usernames)
+    # Sort the Watched records from the Selected table (oldest to most recent)
+    sorted_watched_records = sorted(
+        [row for row in selected_records if row["WATCH_DATE"]],
+        key=lambda x: x["WATCH_DATE"]  # Sort by ascending order
+    )
+
+    # Combine all sorted records
+    combined_records = []
+    if selected_movie:
+        combined_records.append(selected_movie)  # Add the selected movie first
+    combined_records += sorted_nominated_records + sorted_remaining_records + sorted_watched_records
+
+    # Load usernames from the Users sheet
+    user_sheet = get_users_sheet()
+    usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
+
+    return render_template("watchlist.html", movies=combined_records, usernames=usernames)
 
 @app.route('/add-movie', methods=['POST'])
 def add_movie():
