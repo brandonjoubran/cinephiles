@@ -100,7 +100,9 @@ def index():
             return username, logs
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            results = executor.map(fetch_or_load_logs, USERNAMES)
+            user_sheet = get_users_sheet()
+            usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
+            results = executor.map(fetch_or_load_logs, usernames)
             for username, logs in results:
                 logs_by_user[username] = logs
                 cache[username] = logs
