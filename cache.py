@@ -13,3 +13,7 @@ def load_cache():
 def save_cache(data):
     with open(CACHE_FILE, 'w') as f:
         json.dump(data, f)
+
+def flush_cache():
+    if os.path.exists(CACHE_FILE):  # Check if the cache file exists
+        os.remove(CACHE_FILE) 

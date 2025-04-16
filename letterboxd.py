@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import time
 
 from config import load_config
-from cache import is_cache_valid, load_cache, save_cache, CACHE_FILE
+from cache import is_cache_valid, load_cache, save_cache, CACHE_FILE, flush_cache
 from scraper import get_all_user_logs
 from utils import expand_short_url, build_stats, slugify
 from db import get_watchlist_sheet, get_users_sheet, get_nominations_sheet, get_selected_sheet
@@ -545,6 +545,17 @@ def winning_movie():
     watchlist_sheet.update_cell(row_index, watchlist_headers.index("IS_SELECTED") + 1, "TRUE")
 
     return redirect(url_for("watchlist"))
+
+@app.route('/clear-cache', methods=['GET'])
+def clear_cache():
+    """
+    Endpoint to clear the cache file.
+    """
+    try:
+        flush_cache() # Delete the cache file
+        return jsonify({"message": "Cache cleared successfully."}), 200
+    except Exception as e:
+        return jsonify({"error": f"An error occurred while clearing the cache: {e}"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
