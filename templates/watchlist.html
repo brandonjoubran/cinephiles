@@ -720,45 +720,51 @@
 
             /* ==== Nominated Movie Overrides ==== */
 
-            .card.card-nominated .modal {
-                border-radius: 0;
-                max-width: none;
-                width: 100%;
-                height: 100%;
-                max-height: none;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-            }
+            .card.card-nominated .modal,
+.card.card-selected .modal {
+    border-radius: 0;
+    max-width: none;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
 
-            .card.card-nominated .card-inner {
-                flex-direction: column;
-            }
+.card.card-nominated .card-inner,
+.card.card-selected .card-inner {
+    flex-direction: column;
+}
 
-            .card.card-nominated .card-img {
-                width: 100%;
-                height: auto;
-            }
+.card.card-nominated .card-img,
+.card.card-selected .card-img {
+    width: 100%;
+    height: auto;
+}
 
-            .card.card-nominated .card-actions {
-                flex-direction: row;
-                flex-wrap: wrap;
-                gap: 8px;
-            }
+.card.card-nominated .card-actions,
+.card.card-selected .card-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+}
 
-            .card.card-nominated .action-btn {
-                width: 100%;
-            }
+.card.card-nominated .action-btn,
+.card.card-selected .action-btn {
+    width: 100%;
+}
 
-            /* Hide toggle for nominated */
-            .card.card-nominated .card-toggle {
-                display: none !important;
-            }
+.card.card-nominated .card-toggle,
+.card.card-selected .card-toggle {
+    display: none !important;
+}
 
-            .card.card-nominated .card-details {
-                display: block !important;
-                padding: 0;
-            }
+.card.card-nominated .card-details,
+.card.card-selected .card-details {
+    display: block !important;
+    padding: 0;
+}
         }
 
         /* DESKTOP: Make sure everything is always visible */
@@ -819,7 +825,7 @@
             <div class="card-details">
 
                 <div class="card-inner">
-                    {% if movie.IS_NOMINATED %}
+                    {% if movie.IS_NOMINATED or movie.IS_SELECTED%}
                     <img class="card-img" src="{{ movie.POSTER }}" alt="{{ movie.TITLE }} Poster" />
                     {% elif not movie.IS_NOMINATED %}
                     <img class="card-img not-nom" src="{{ movie.POSTER }}" alt="{{ movie.TITLE }} Poster" />

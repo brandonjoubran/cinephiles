@@ -184,7 +184,7 @@ def watchlist():
 
     # Sort the remaining records (not nominated and not watched)
     sorted_remaining_records = sorted(
-        [row for row in filtered_watchlist_records if not row["IS_NOMINATED"] and not row["IS_WATCHED"]],
+        [row for row in filtered_watchlist_records if not row["IS_NOMINATED"] and not row["IS_WATCHED"] and not row["IS_SELECTED"]],
         key=lambda x: x["DATE_ADDED"]  # Sort by date added (optional)
     )
 
@@ -306,7 +306,7 @@ def mark_watched(movie_slug):
         # Step 1: Push all IS_NOMINATED movies to the Nominated table, except ignored slugs
         ignored_slugs = {"children-of-men", "rebecca", "dr-strangelove-or-how-i-learned-to-stop-worrying-and-love-the-bomb"}
         for idx, nominated_movie in enumerate(watchlist_records):
-            if str(nominated_movie.get("IS_NOMINATED", "")).upper() == "TRUE" and nominated_movie["SLUG"] not in ignored_slugs:
+            if str(nominated_movie.get("IS_NOMINATED", "")).upper() == "TRUE":
                 # Prepare the data for the nominated table
                 nominated_data = [
                     nominated_movie["TITLE"],
