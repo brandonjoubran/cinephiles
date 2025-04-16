@@ -96,7 +96,13 @@ def index():
 
         def fetch_or_load_logs(username):
             print(f"⏳ Fetching diary for {username}")
-            logs = get_all_user_logs(username, MOVIES)
+            """
+            Fetch the list of SLUGs from the Selected sheet.
+            """
+            selected_sheet = get_selected_sheet()
+            selected_records = selected_sheet.get_all_records()
+            selected_slugs = [row["SLUG"] for row in selected_records if "SLUG" in row]
+            logs = get_all_user_logs(username, selected_slugs)
             return username, logs
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -118,7 +124,13 @@ def index():
 @app.route('/refresh/<username>', methods=['POST'])
 def refresh_user(username):
     logs_by_user = {}
-    for movie in MOVIES:
+    """
+    Fetch the list of SLUGs from the Selected sheet.
+    """
+    selected_sheet = get_selected_sheet()
+    selected_records = selected_sheet.get_all_records()
+    selected_slugs = [row["SLUG"] for row in selected_records if "SLUG" in row]
+    for movie in selected_slugs:
         logs_by_user[(username, movie)] = get_all_user_logs(username, movie)
 
     cache = load_cache() if os.path.exists(CACHE_FILE) else {}

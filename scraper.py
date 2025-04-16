@@ -45,13 +45,13 @@ def count_review_words(url):
     return 0
 
 # -------------- Scraper ------------------
-def get_all_user_logs(username, movie_titles, max_pages=1):
+def get_all_user_logs(username, target_slugs, max_pages=1):
     logs = []
-    target_slugs = []
-    #target_slug = slugify(movie_title)
-    for movie_title in movie_titles:
-        target_slug = slugify(movie_title)
-        target_slugs.append(target_slug)
+    # target_slugs = []
+    # #target_slug = slugify(movie_title)
+    # for movie_title in movie_titles:
+    #     target_slug = slugify(movie_title)
+    #     target_slugs.append(target_slug)
 
     # Start timer for the entire function
     function_start = time.time()
@@ -89,7 +89,7 @@ def get_all_user_logs(username, movie_titles, max_pages=1):
                 continue
 
             title_tag = row.select_one('h3.headline-3 a')
-            title = title_tag.text.strip() if title_tag else movie_title
+            title = title_tag.text.strip() if title_tag else "NA"
             link = f"https://letterboxd.com{title_tag['href']}" if title_tag else ''
             date_tag = row.select_one('td.td-day a')
             date = extract_full_date(date_tag['href']) if date_tag and date_tag.has_attr('href') else 'Unknown date'
@@ -124,7 +124,7 @@ def get_all_user_logs(username, movie_titles, max_pages=1):
 
     # End timer for the entire function
     function_end = time.time()
-    print(f"get_all_user_logs({username}, {movie_title}) took {function_end - function_start:.2f} seconds")
+    print(f"get_all_user_logs({username}) took {function_end - function_start:.2f} seconds")
 
     return logs
 
