@@ -9,10 +9,11 @@ from datetime import datetime
 from oauth2client.service_account import ServiceAccountCredentials
 from dotenv import load_dotenv
 import time
+import random
 
 from config import load_config
 from cache import is_cache_valid, load_cache, save_cache, CACHE_FILE, flush_cache
-from scraper import get_all_user_logs
+from scraper import get_all_user_logs, did_user_watch_movie
 from utils import expand_short_url, build_stats, slugify
 from db import get_watchlist_sheet, get_users_sheet, get_nominations_sheet, get_selected_sheet
 
@@ -556,6 +557,42 @@ def clear_cache():
         return jsonify({"message": "Cache cleared successfully."}), 200
     except Exception as e:
         return jsonify({"error": f"An error occurred while clearing the cache: {e}"}), 500
+
+@app.route('/generate-voters', methods=['GET'])
+def generate_voters():
+    """
+    Endpoint to generate 3 random voters from the usernames table.
+    Only considers users who have watched the latest movie.
+    """
+    # Get the Selected sheet
+    selected_sheet = get_selected_sheet()
+    selected_records = selected_sheet.get_all_records()
+
+    if not selected_records:
+        return jsonify({"error": "No movies found in the Selected table."}), 400
+
+    # Get the latest movie (last entry in the Selected table)
+    latest_movie = selected_records[-1]
+    latest_movie_slug = latest_movie.get("SLUG")
+
+    if not latest_movie_slug:
+        return jsonify({"error": "Latest movie does not have a valid slug."}), 400
+
+    # Get all usernames
+    user_sheet = get_users_sheet()
+    usernames = [row[0] for row in user_sheet.get_all_values()[1:]]  # Skip the header row
+
+    # Filter users who have watched the latest movie
+    eligible_users = []
+    for username in usernames:
+        did = did_user_watch_movie(username, latest_movie_slug)  # Call get_all_user_logs with the username and slug
+        print(username, did)
+        if did:  # If logs is not an empty dictionary, the user has watched the movie
+            eligible_users.append(username)
+
+    # Select 3 random voters from the eligible users
+    random_voters = random.sample(eligible_users, 3)
+    return jsonify({"voters": random_voters}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

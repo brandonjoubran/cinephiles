@@ -128,6 +128,50 @@ def get_all_user_logs(username, target_slugs, max_pages=1):
 
     return logs
 
+def did_user_watch_movie(username, target_slug, max_pages=1):
+    logs = []
+    function_start = time.time()
+
+    for page in range(1, max_pages + 1):
+        # Start timer for each page request
+        page_start = time.time()
+
+        url = f'https://letterboxd.com/{username}/films/diary/page/{page}/'
+        resp = requests.get(url)
+        if resp.status_code != 200:
+            print(f"Page {page}: Request failed with status code {resp.status_code}")
+            break
+
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        rows = soup.select('tr.diary-entry-row')
+        if not rows:
+            print(f"Page {page}: No diary entry rows found.")
+            break
+
+        # End timer for page request and parsing
+        page_end = time.time()
+        print(f"Page {page}: Request and parsing took {page_end - page_start:.2f} seconds")
+
+        for row in rows:
+            poster = row.select_one('div[data-film-slug]')
+            if not poster:
+                continue
+
+            slug = slugify(poster['data-film-slug'])
+            print(slug, target_slug)
+            if slug != target_slug:
+                continue
+            return True
+            
+        # Add a delay to avoid overwhelming the server
+        time.sleep(0.2)
+
+    # End timer for the entire function
+    function_end = time.time()
+    print(f"get_all_user_logs({username}) took {function_end - function_start:.2f} seconds")
+
+    return False
+
 def get_user_diary(username, max_pages=1):
     logs = []
 
