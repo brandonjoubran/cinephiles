@@ -726,12 +726,6 @@ def generate_voters():
     # Load the cache if it exists
     cache = load_cache() if os.path.exists(CACHE_FILE) else {}
 
-    # Ensure logs are in the cache
-    if "logs" not in cache:
-        return jsonify({"error": "Logs are not cached. Please refresh the cache."}), 400
-
-    logs_by_user = cache["logs"]
-
     # Get the Selected records from the cache or fetch them
     selected_records = cache.get("selected_records")
     if not selected_records:
@@ -751,16 +745,26 @@ def generate_voters():
     if not latest_movie_slug:
         return jsonify({"error": "Latest movie does not have a valid slug."}), 400
 
-    # Filter users who have watched the latest movie
+    # Load logs from the cache or fallback to checking each user individually
+    logs_by_user = cache.get("logs")
     eligible_users = []
-    for username, logs in logs_by_user.items():
-        # Check if the user has watched the latest movie
-        print(username, logs)
-        print(latest_movie_slug)
-        if any(log.get("url").endswith(f"{latest_movie_slug}/") for log in logs):
-            eligible_users.append(username)
-            
-    print(eligible_users)
+
+    if logs_by_user:
+        print("✅ Using cached logs")
+        # Filter users who have watched the latest movie using cached logs
+        for username, logs in logs_by_user.items():
+            if any(log.get("url").endswith(f"{latest_movie_slug}/") for log in logs):
+                eligible_users.append(username)
+    else:
+        print("♻️ Logs not found in cache. Checking each user individually.")
+        user_sheet = get_users_sheet()
+        usernames = [row[0] for row in user_sheet.get_all_values()[1:]]  # Skip the header row
+
+        # Check each user individually using `did_user_watch_movie`
+        for username in usernames:
+            if did_user_watch_movie(username, latest_movie_slug):
+                eligible_users.append(username)
+
     # if len(eligible_users) < 3:
     #     return jsonify({"error": "Not enough eligible users to generate voters."}), 400
 
