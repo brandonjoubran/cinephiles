@@ -361,6 +361,7 @@ def delete_movie():
 
 @app.route('/mark-watched/<movie_slug>', methods=['POST'])
 def mark_watched(movie_slug):
+    # return jsonify({"error": "This endpoint is not implemented yet."}), 501
     # Load the cache if it exists
     cache = load_cache() if os.path.exists(CACHE_FILE) else {}
 

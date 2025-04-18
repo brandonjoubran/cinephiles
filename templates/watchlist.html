@@ -510,56 +510,62 @@
         }
 
         .dice-loader {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    margin-bottom: 20px;
-}
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
 
-.die {
-    font-size: 2.5rem;
-    animation: spin-die 1s linear infinite;
-}
+        .die {
+            font-size: 2.5rem;
+            animation: spin-die 1s linear infinite;
+        }
 
-.voter-results {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    padding: 10px;
-    max-width: 100%;
-    word-wrap: break-word;
-}
+        .voter-results {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
 
-.voter-results .die.reveal {
-    font-size: 1.5rem;
-    color: #004d52;
-    background-color: #e0faff;
-    padding: 8px 16px;
-    border-radius: 12px;
-    box-shadow: 0 2px 6px rgba(0, 188, 212, 0.2);
-    animation: pop-in 0.4s ease;
-}
+        .voter-results .die.reveal {
+            font-size: 1.5rem;
+            color: #004d52;
+            background-color: #e0faff;
+            padding: 8px 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0, 188, 212, 0.2);
+            animation: pop-in 0.4s ease;
+        }
 
-@keyframes spin-die {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
+        @keyframes spin-die {
+            0% {
+                transform: rotate(0deg);
+            }
 
-.die.reveal {
-    animation: pop-in 0.5s ease;
-}
+            100% {
+                transform: rotate(360deg);
+            }
+        }
 
-@keyframes pop-in {
-    0% {
-        transform: scale(0.5);
-        opacity: 0;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
+        .die.reveal {
+            animation: pop-in 0.5s ease;
+        }
+
+        @keyframes pop-in {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
 
         /* ==== Animations ==== */
 
@@ -940,10 +946,12 @@
                     <div class="card-actions">
                         {% if not movie.IS_WATCHED and not movie.IS_NOMINATED and movie.IS_SELECTED %}
                         <!-- <button class="action-btn nominate-btn" data-slug="{{ movie.SLUG }}">✅ Complete</button> -->
-                        <form action="{{ url_for('mark_watched', movie_slug=movie.SLUG) }}" method="POST"
+                        <!-- <form action="{{ url_for('mark_watched', movie_slug=movie.SLUG) }}" method="POST"
                             style="display: contents;">
                             <button type="submit" class="action-btn watched-btn">✅ Complete</button>
-                        </form>
+                        </form> -->
+                        <button type="submit" class="action-btn watched-btn complete-movie-btn"
+                            data-slug="{{ movie.SLUG }}">✅ Complete</button>
                         {% elif not movie.IS_WATCHED and not movie.IS_NOMINATED and not movie.IS_SELECTED %}
                         <button class="action-btn nominate-btn" data-slug="{{ movie.SLUG }}">🏆 Nominate</button>
                         {% elif movie.IS_NOMINATED %}
@@ -1103,6 +1111,23 @@
         </div>
     </div>
 
+    <!-- Complete Movie Modal -->
+    <div id="confirmCompleteModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>Confirm Selection</h2>
+            <p>Are you sure you want to mark this movie as watched? It will reset the data for the week.</p>
+            <div class="modal-actions">
+                <form action="" method="POST" style="display: contents;">
+                    <input type="hidden" name="slug" id="completeMovieSlug" />
+                    <div class="modal-actions">
+                        <button type="button" class="close-btn">Cancel</button>
+                        <button type="submit" class="submit-btn">Confirm</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         const addModal = document.getElementById("addModal");
         const generateModal = document.getElementById("generateModal");
@@ -1111,6 +1136,7 @@
         const votesModal = document.getElementById("votesModal");
         const confirmModal = document.getElementById("confirmModal");
         const winningModal = document.getElementById("confirmWinningModal");
+        const completeMovieModal = document.getElementById("confirmCompleteModal");
         const addBtn = document.querySelector(".add-movie-btn");
         const generateBtn = document.querySelector(".generate-voters-btn");
         const nominateBtns = document.querySelectorAll(".nominate-btn");
@@ -1118,12 +1144,14 @@
         const viewVotesBtns = document.querySelectorAll(".view-votes-btn");
         const deleteBtns = document.querySelectorAll(".delete-btn");
         const winningBtns = document.querySelectorAll(".winning-btn");
+        const completeMovieBtns = document.querySelectorAll(".complete-movie-btn");
         const closeBtns = document.querySelectorAll(".close-btn");
 
         const nominateSlugInput = document.getElementById("nominateSlug");
         const voteSlugInput = document.getElementById("voteSlug");
         const confirmForm = document.getElementById("confirmForm");
         const winningSlugInput = document.getElementById("winningSlug");
+        const completeMovieSlugInput = document.getElementById("completeMovieSlug");
 
         const deleteSlugInput = document.getElementById("deleteSlug");
 
@@ -1135,37 +1163,37 @@
         const randomUsersList = document.getElementById("randomUsersList");
 
         generateBtn.addEventListener("click", () => {
-    // Show modal immediately with spinning dice
-    randomUsersList.innerHTML = `
+            // Show modal immediately with spinning dice
+            randomUsersList.innerHTML = `
         <div class="die">🎲</div>
         <div class="die">🎲</div>
         <div class="die">🎲</div>
     `;
-    randomUsersList.style.flexDirection = 'row';
-    generateModal.classList.remove("hidden");
+            randomUsersList.style.flexDirection = 'row';
+            generateModal.classList.remove("hidden");
 
-    // Fetch voters
-    fetch('/generate-voters')
-        .then(response => response.json())
-        .then(data => {
-            if (data.voters) {
-                // Wait a moment to show spinner effect
-                setTimeout(() => {
-                    // Replace dice with animated reveal of names
-                    randomUsersList.style.flexDirection = 'column';
-                    randomUsersList.innerHTML = data.voters.map(voter =>
-                        `<p class="die reveal">${voter}</p>`
-                    ).join('');
-                }, 1200); // Wait 1.2s before revealing
-            } else {
-                randomUsersList.innerText = data.error || 'An error occurred while generating voters.';
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            randomUsersList.innerText = 'An error occurred while generating voters.';
+            // Fetch voters
+            fetch('/generate-voters')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.voters) {
+                        // Wait a moment to show spinner effect
+                        setTimeout(() => {
+                            // Replace dice with animated reveal of names
+                            randomUsersList.style.flexDirection = 'column';
+                            randomUsersList.innerHTML = data.voters.map(voter =>
+                                `<p class="die reveal">${voter}</p>`
+                            ).join('');
+                        }, 1200); // Wait 1.2s before revealing
+                    } else {
+                        randomUsersList.innerText = data.error || 'An error occurred while generating voters.';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    randomUsersList.innerText = 'An error occurred while generating voters.';
+                });
         });
-});
 
         // Open the Nominate Movie Modal
         nominateBtns.forEach(btn => {
@@ -1191,6 +1219,20 @@
                 const movieSlug = btn.getAttribute("data-slug");
                 winningSlugInput.value = movieSlug;
                 winningModal.classList.remove("hidden");
+            });
+        });
+
+        // Open the Winning Movie Modal
+        completeMovieBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const movieSlug = btn.getAttribute("data-slug"); // Get the slug from the button
+                completeMovieSlugInput.value = movieSlug; // Set the slug in the hidden input field
+
+                // Update the form's action dynamically
+                const completeMovieForm = document.querySelector("#confirmCompleteModal form");
+                completeMovieForm.action = `/mark-watched/${movieSlug}`;
+
+                completeMovieModal.classList.remove("hidden"); // Show the modal
             });
         });
 
@@ -1221,6 +1263,7 @@
                 votesModal.classList.add("hidden");
                 confirmModal.classList.add("hidden");
                 winningModal.classList.add("hidden");
+                completeMovieModal.classList.add("hidden");
             });
         });
 
@@ -1233,6 +1276,7 @@
             if (e.target === votesModal) votesModal.classList.add("hidden");
             if (e.target === confirmModal) confirmModal.classList.add("hidden");
             if (e.target === winningModal) winningModal.classList.add("hidden");
+            if (e.target === completeMovieModal) completeMovieModal.classList.add("hidden");
         });
 
         function adjustFontSizeBasedOnLength() {
