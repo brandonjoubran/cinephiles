@@ -87,19 +87,19 @@ def index():
 
     logs_by_user = {}
 
-    if is_cache_valid():
+    # Load the cache if it exists
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
+
+    if is_cache_valid() and "logs" in cache:
         print("✅ Using cached data")
-        cache = load_cache()
-        logs_by_user = cache  # entire structure is now {username: [logs]}
+        logs_by_user = cache["logs"]  # Use the cached logs
     else:
         print("♻️ Recomputing cache")
         cache = {}
 
         def fetch_or_load_logs(username):
             print(f"⏳ Fetching diary for {username}")
-            """
-            Fetch the list of SLUGs from the Selected sheet.
-            """
+            # Fetch the list of SLUGs from the Selected sheet
             selected_sheet = get_selected_sheet()
             selected_records = selected_sheet.get_all_records()
             selected_slugs = [row["SLUG"] for row in selected_records if "SLUG" in row]
@@ -112,9 +112,9 @@ def index():
             results = executor.map(fetch_or_load_logs, usernames)
             for username, logs in results:
                 logs_by_user[username] = logs
-                cache[username] = logs
 
-        # Save updated cache
+        # Update the cache with the new logs
+        cache["logs"] = logs_by_user
         save_cache(cache)
 
     end_time = time.time()  # End timer for the entire function
@@ -162,15 +162,30 @@ def parse_movie():
 
 @app.route('/watchlist')
 def watchlist():
-    # Load the Watchlist and Selected sheets
-    watchlist_sheet = get_watchlist_sheet()
-    selected_sheet = get_selected_sheet()
+    # Load the cache if it exists
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
 
-    # Get all records from the Watchlist sheet
-    watchlist_records = watchlist_sheet.get_all_records()
+    # Check if the Watchlist and Selected records are already cached
+    cached_watchlist_records = cache.get("watchlist_records")
+    cached_selected_records = cache.get("selected_records")
 
-    # Get all records from the Selected sheet
-    selected_records = selected_sheet.get_all_records()
+    if cached_watchlist_records and cached_selected_records:
+        print("✅ Using cached data for Watchlist and Selected records")
+        watchlist_records = cached_watchlist_records
+        selected_records = cached_selected_records
+    else:
+        print("♻️ Fetching data and updating cache for Watchlist and Selected records")
+        # Fetch data from the sheets
+        watchlist_sheet = get_watchlist_sheet()
+        selected_sheet = get_selected_sheet()
+
+        watchlist_records = watchlist_sheet.get_all_records()
+        selected_records = selected_sheet.get_all_records()
+
+        # Update the cache
+        cache["watchlist_records"] = watchlist_records
+        cache["selected_records"] = selected_records
+        save_cache(cache)
 
     # Normalize boolean fields in the Watchlist
     for row in watchlist_records:
@@ -239,11 +254,13 @@ def add_movie():
     try:
         resp = requests.get(full_url)
         soup = BeautifulSoup(resp.text, 'html.parser')
+
         # Extract the data-tmdb-id attribute from the <body> tag
         body_tag = soup.find('body')
         tmdb_id = body_tag['data-tmdb-id'] if body_tag and 'data-tmdb-id' in body_tag.attrs else None
         print(tmdb_id)
-        poster_url = get_poster(tmdb_id)  
+        poster_url = get_poster(tmdb_id)
+
         # Extract the movie title
         title_tag = soup.find('meta', property='og:title')
         title = title_tag['content'] if title_tag else slug.replace('-', ' ').title()
@@ -257,55 +274,125 @@ def add_movie():
         # Remove the year from the title
         clean_title = re.sub(r'\s*\(\d{4}\)', '', title)
 
-        # poster_url = get_poster(clean_title, year)   
-        print(poster_url)    
-        
+        print(poster_url)
 
     except Exception as e:
         return jsonify({"error": f"Error fetching movie data: {e}"}), 500
 
     date_added = datetime.now().strftime('%m/%d/%Y')
 
+    # Load the cache if it exists
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
+
+    # Get the watchlist sheet
     sheet = get_watchlist_sheet()
+
+    # Add the movie to the watchlist sheet
     sheet.append_row([
-        title,
+        clean_title,
         slug,
         full_url,
         added_by,
         date_added,
         poster_url,
         "FALSE",  # IS_WATCHED
-        "FALSE"    # IS_NOMINATED
+        "FALSE"   # IS_NOMINATED
     ])
+
+    # Step 1: Update the cache
+    watchlist_records = cache.get("watchlist_records")
+    if not watchlist_records:
+        print("♻️ Fetching Watchlist records and updating cache")
+        watchlist_records = sheet.get_all_records()
+    else:
+        # Add the new movie to the cached watchlist
+        watchlist_records.append({
+            "TITLE": clean_title,
+            "SLUG": slug,
+            "URL": full_url,
+            "ADDED_BY": added_by,
+            "DATE_ADDED": date_added,
+            "POSTER": poster_url,
+            "IS_WATCHED": "FALSE",
+            "IS_NOMINATED": "FALSE"
+        })
+
+    # Step 2: Save the updated cache
+    cache["watchlist_records"] = watchlist_records
+    save_cache(cache)
 
     return redirect(url_for('watchlist'))
 
 @app.route('/delete_movie', methods=['POST'])
 def delete_movie():
     movie_slug = request.form.get("slug")
-    # Load your Google Sheets or database
-    sheet = get_watchlist_sheet()  # Assuming `get_sheet()` is a function to get your Google Sheets or data source
-    
+
+    # Load the cache if it exists
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
+
+    # Get the watchlist sheet
+    sheet = get_watchlist_sheet()
+
+    # Get all records from the watchlist
+    watchlist_records = cache.get("watchlist_records")
+    if not watchlist_records:
+        print("♻️ Fetching Watchlist records and updating cache")
+        watchlist_records = sheet.get_all_records()
+        cache["watchlist_records"] = watchlist_records
+        save_cache(cache)
+
     # Find the movie row by its slug
     movie_data = sheet.findall(movie_slug)
-    
+
     if movie_data:
         # Assuming that the movie_slug uniquely identifies the movie, we delete it
         row = movie_data[0].row
         sheet.delete_rows(row)
-    
+
+        # Step 1: Remove the movie from the cached watchlist_records
+        watchlist_records = [row for row in watchlist_records if row["SLUG"] != movie_slug]
+
+        # Step 2: Update the cache
+        cache["watchlist_records"] = watchlist_records
+        save_cache(cache)
+
     # Redirect back to the watchlist page
     return redirect(url_for('watchlist'))
 
 @app.route('/mark-watched/<movie_slug>', methods=['POST'])
 def mark_watched(movie_slug):
-    # Load the Google Sheets
+    # Load the cache if it exists
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
+
+    # Get the Google Sheets
     watchlist_sheet = get_watchlist_sheet()
     nominated_sheet = get_nominations_sheet()
     selected_sheet = get_selected_sheet()
 
     # Get all records from the watchlist
-    watchlist_records = watchlist_sheet.get_all_records()
+    watchlist_records = cache.get("watchlist_records")
+    if not watchlist_records:
+        print("♻️ Fetching Watchlist records and updating cache")
+        watchlist_records = watchlist_sheet.get_all_records()
+        cache["watchlist_records"] = watchlist_records
+        save_cache(cache)
+
+    # Get all records from the nominated and selected sheets
+    nominated_records = cache.get("nominated_records")
+    if not nominated_records:
+        print("♻️ Fetching Nominated records and updating cache")
+        nominated_records = nominated_sheet.get_all_records()
+        cache["nominated_records"] = nominated_records
+        save_cache(cache)
+
+    selected_records = cache.get("selected_records")
+    if not selected_records:
+        print("♻️ Fetching Selected records and updating cache")
+        selected_records = selected_sheet.get_all_records()
+        cache["selected_records"] = selected_records
+        save_cache(cache)
+
+    # Get the headers from the watchlist sheet
     watchlist_headers = watchlist_sheet.row_values(1)
 
     # Find the movie row by its slug
@@ -319,7 +406,7 @@ def mark_watched(movie_slug):
     # Check if the movie is selected
     if str(movie.get("IS_SELECTED", "")).upper() == "TRUE":
         # Step 1: Push all IS_NOMINATED movies to the Nominated table, except ignored slugs
-        ignored_slugs = {"children-of-men", "rebecca", "dr-strangelove-or-how-i-learned-to-stop-worrying-and-love-the-bomb"}
+        # ignored_slugs = {"the-shawshank-redemption", "brazil", "moneyball"}
         for idx, nominated_movie in enumerate(watchlist_records):
             if str(nominated_movie.get("IS_NOMINATED", "")).upper() == "TRUE":
                 # Prepare the data for the nominated table
@@ -336,6 +423,16 @@ def mark_watched(movie_slug):
 
                 # Add the movie to the nominated table
                 nominated_sheet.append_row(nominated_data)
+                nominated_records.append({
+                    "TITLE": nominated_movie["TITLE"],
+                    "SLUG": nominated_movie["SLUG"],
+                    "URL": nominated_movie["URL"],
+                    "ADDED_BY": nominated_movie["ADDED_BY"],
+                    "DATE_ADDED": nominated_movie["DATE_ADDED"],
+                    "POSTER": nominated_movie["POSTER"],
+                    "NOMINATED_BY": nominated_movie.get("NOMINATED_BY", ""),
+                    "VOTED_BY": nominated_movie.get("VOTED_BY", "")
+                })
 
                 # Reset IS_NOMINATED and VOTED_BY in the watchlist table
                 nominated_row_index = idx + 2  # Account for the header row
@@ -343,7 +440,12 @@ def mark_watched(movie_slug):
                 watchlist_sheet.update_cell(nominated_row_index, watchlist_headers.index("VOTED_BY") + 1, "")
                 watchlist_sheet.update_cell(nominated_row_index, watchlist_headers.index("IS_SELECTED") + 1, "")
                 watchlist_sheet.update_cell(nominated_row_index, watchlist_headers.index("NOMINATED_BY") + 1, "")
-                watchlist_sheet.update_cell(nominated_row_index, watchlist_headers.index("VOTED_BY") + 1, "")
+
+                # Update the cache for the nominated movie
+                nominated_movie["IS_NOMINATED"] = "FALSE"
+                nominated_movie["VOTED_BY"] = ""
+                nominated_movie["IS_SELECTED"] = ""
+                nominated_movie["NOMINATED_BY"] = ""
 
         # Step 2: Push the IS_SELECTED movie to the Selected table
         selected_data = [
@@ -360,35 +462,74 @@ def mark_watched(movie_slug):
 
         # Add the movie to the selected table
         selected_sheet.append_row(selected_data)
+        selected_records.append({
+            "TITLE": movie["TITLE"],
+            "SLUG": movie["SLUG"],
+            "URL": movie["URL"],
+            "ADDED_BY": movie["ADDED_BY"],
+            "DATE_ADDED": movie["DATE_ADDED"],
+            "POSTER": movie["POSTER"],
+            "NOMINATED_BY": movie.get("NOMINATED_BY", ""),
+            "VOTED_BY": movie.get("VOTED_BY", ""),
+            "WATCHED_DATE": datetime.now().strftime('%m/%d/%Y')
+        })
 
         # Reset IS_SELECTED in the watchlist table
         watchlist_sheet.update_cell(row_index, watchlist_headers.index("IS_SELECTED") + 1, "")
+        movie["IS_SELECTED"] = ""
 
     # Step 3: Mark the movie as watched (IS_WATCHED = TRUE)
     is_watched_col = watchlist_headers.index("IS_WATCHED") + 1  # Find the column for IS_WATCHED
     watchlist_sheet.update_cell(row_index, is_watched_col, "TRUE")  # Update the cell to TRUE
+    movie["IS_WATCHED"] = "TRUE"
 
     # Reset IS_SELECTED, IS_NOMINATED, NOMINATED_BY, and VOTED_BY in the watchlist table
     watchlist_sheet.update_cell(row_index, watchlist_headers.index("IS_SELECTED") + 1, "")
     watchlist_sheet.update_cell(row_index, watchlist_headers.index("IS_NOMINATED") + 1, "")
     watchlist_sheet.update_cell(row_index, watchlist_headers.index("NOMINATED_BY") + 1, "")
     watchlist_sheet.update_cell(row_index, watchlist_headers.index("VOTED_BY") + 1, "")
+    movie["IS_SELECTED"] = ""
+    movie["IS_NOMINATED"] = ""
+    movie["NOMINATED_BY"] = ""
+    movie["VOTED_BY"] = ""
+
+    # Step 4: Update the cache
+    cache["watchlist_records"] = watchlist_records
+    cache["nominated_records"] = nominated_records
+    cache["selected_records"] = selected_records
+    save_cache(cache)
 
     return redirect(url_for('watchlist'))
 
 @app.route('/mark-unwatched/<movie_slug>', methods=['POST'])
 def mark_unwatched(movie_slug):
-    # Load the Google Sheet
+    # Load the cache if it exists
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
+
+    # Get the watchlist sheet
     sheet = get_watchlist_sheet()
 
-    # Find the movie row by its slug
-    movie_data = sheet.findall(movie_slug)
+    # Get all records from the watchlist
+    watchlist_records = cache.get("watchlist_records")
+    if not watchlist_records:
+        print("♻️ Fetching Watchlist records and updating cache")
+        watchlist_records = sheet.get_all_records()
+        cache["watchlist_records"] = watchlist_records
+        save_cache(cache)
 
-    if movie_data:
-        # Assuming the movie_slug uniquely identifies the movie, update the IS_WATCHED column
-        row = movie_data[0].row
-        is_watched_col = sheet.find("IS_WATCHED").col  # Find the column for IS_WATCHED
-        sheet.update_cell(row, is_watched_col, "FALSE")  # Update the cell to FALSE
+    # Step 1: Find the movie in the watchlist by its slug
+    movie = next((row for row in watchlist_records if row["SLUG"] == movie_slug), None)
+
+    if movie:
+        # Step 2: Update the IS_WATCHED column in the sheet
+        row_index = watchlist_records.index(movie) + 2  # Account for the header row
+        is_watched_col = sheet.row_values(1).index("IS_WATCHED") + 1  # Find the column for IS_WATCHED
+        sheet.update_cell(row_index, is_watched_col, "FALSE")  # Update the cell to FALSE
+
+        # Step 3: Update the cache
+        movie["IS_WATCHED"] = "FALSE"
+        cache["watchlist_records"] = watchlist_records
+        save_cache(cache)
 
     # Redirect back to the watchlist page
     return redirect(url_for('watchlist'))
@@ -398,15 +539,34 @@ def nominate_movie():
     slug = request.form.get("slug")
     username = request.form.get("username")
 
-    sheet = get_watchlist_sheet()
-    records = sheet.get_all_records()
-    headers = sheet.row_values(1)
+    # Load the cache if it exists
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
 
-    for idx, row in enumerate(records):
+    # Get the watchlist sheet
+    sheet = get_watchlist_sheet()
+
+    # Get all records from the watchlist
+    watchlist_records = cache.get("watchlist_records")
+    if not watchlist_records:
+        print("♻️ Fetching Watchlist records and updating cache")
+        watchlist_records = sheet.get_all_records()
+        cache["watchlist_records"] = watchlist_records
+        save_cache(cache)
+
+    # Step 1: Find the movie in the watchlist by its slug
+    for idx, row in enumerate(watchlist_records):
         if row["SLUG"] == slug:
             row_index = idx + 2  # header is row 1
-            sheet.update_cell(row_index, headers.index("IS_NOMINATED") + 1, "TRUE")
-            sheet.update_cell(row_index, headers.index("NOMINATED_BY") + 1, username)
+
+            # Step 2: Update the IS_NOMINATED and NOMINATED_BY fields in the sheet
+            sheet.update_cell(row_index, sheet.row_values(1).index("IS_NOMINATED") + 1, "TRUE")
+            sheet.update_cell(row_index, sheet.row_values(1).index("NOMINATED_BY") + 1, username)
+
+            # Step 3: Update the cache
+            row["IS_NOMINATED"] = "TRUE"
+            row["NOMINATED_BY"] = username
+            cache["watchlist_records"] = watchlist_records
+            save_cache(cache)
             break
 
     return redirect(url_for("watchlist"))
@@ -415,16 +575,36 @@ def nominate_movie():
 def remove_nomination():
     slug = request.form.get("slug")
 
-    sheet = get_watchlist_sheet()
-    records = sheet.get_all_records()
-    headers = sheet.row_values(1)
+    # Load the cache if it exists
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
 
-    for idx, row in enumerate(records):
+    # Get the watchlist sheet
+    sheet = get_watchlist_sheet()
+
+    # Get all records from the watchlist
+    watchlist_records = cache.get("watchlist_records")
+    if not watchlist_records:
+        print("♻️ Fetching Watchlist records and updating cache")
+        watchlist_records = sheet.get_all_records()
+        cache["watchlist_records"] = watchlist_records
+        save_cache(cache)
+
+    # Step 1: Find the movie in the watchlist by its slug
+    for idx, row in enumerate(watchlist_records):
         if row["SLUG"] == slug:
-            row_index = idx + 2
-            sheet.update_cell(row_index, headers.index("IS_NOMINATED") + 1, "FALSE")
-            sheet.update_cell(row_index, headers.index("NOMINATED_BY") + 1, "")
-            sheet.update_cell(row_index, headers.index("VOTED_BY") + 1, "")
+            row_index = idx + 2  # Account for the header row
+
+            # Step 2: Update the IS_NOMINATED, NOMINATED_BY, and VOTED_BY fields in the sheet
+            sheet.update_cell(row_index, sheet.row_values(1).index("IS_NOMINATED") + 1, "FALSE")
+            sheet.update_cell(row_index, sheet.row_values(1).index("NOMINATED_BY") + 1, "")
+            sheet.update_cell(row_index, sheet.row_values(1).index("VOTED_BY") + 1, "")
+
+            # Step 3: Update the cache
+            row["IS_NOMINATED"] = "FALSE"
+            row["NOMINATED_BY"] = ""
+            row["VOTED_BY"] = ""
+            cache["watchlist_records"] = watchlist_records
+            save_cache(cache)
             break
 
     return redirect(url_for("watchlist"))
@@ -437,28 +617,44 @@ def vote_movie():
     if not username:
         return redirect(url_for("watchlist"))  # Redirect if no username is provided
 
-    sheet = get_watchlist_sheet()
-    records = sheet.get_all_records()
-    headers = sheet.row_values(1)
+    # Load the cache if it exists
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
 
-    for idx, row in enumerate(records):
+    # Get the watchlist sheet
+    sheet = get_watchlist_sheet()
+
+    # Get all records from the watchlist
+    watchlist_records = cache.get("watchlist_records")
+    if not watchlist_records:
+        print("♻️ Fetching Watchlist records and updating cache")
+        watchlist_records = sheet.get_all_records()
+        cache["watchlist_records"] = watchlist_records
+        save_cache(cache)
+
+    # Step 1: Find the movie in the watchlist by its slug
+    for idx, row in enumerate(watchlist_records):
         if row["SLUG"] == slug:
             row_index = idx + 2  # Row index in Google Sheets (1-based index)
             voted_by = row.get("VOTED_BY", "")
-            
+
             # Split the current voted_by list into a list of users and strip whitespace
             voted_by_list = [user.strip() for user in voted_by.split(",")] if voted_by else []
-            
+
             if username.strip() in voted_by_list:
                 # If the user has already voted, remove their vote
                 voted_by_list.remove(username.strip())
             else:
                 # If the user hasn't voted, add their vote
                 voted_by_list.append(username.strip())
-            
-            # Update the VOTED_BY field
+
+            # Update the VOTED_BY field in the sheet
             new_voted_by = ", ".join(voted_by_list)
-            sheet.update_cell(row_index, headers.index("VOTED_BY") + 1, new_voted_by)
+            sheet.update_cell(row_index, sheet.row_values(1).index("VOTED_BY") + 1, new_voted_by)
+
+            # Step 2: Update the cache
+            row["VOTED_BY"] = new_voted_by
+            cache["watchlist_records"] = watchlist_records
+            save_cache(cache)
             break
 
     return redirect(url_for("watchlist"))
@@ -466,73 +662,20 @@ def vote_movie():
 @app.route('/winning_movie', methods=['POST'])
 def winning_movie():
     slug = request.form.get("slug")
+    
+    # Load the cache if it exists
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
 
-    # Get the watchlist, nominated, and selected sheets
-    # watchlist_sheet = get_watchlist_sheet()
-    # nominated_sheet = get_nominations_sheet()
-    # selected_sheet = get_selected_sheet()
-
-    # # Get all records from the watchlist
-    # watchlist_records = watchlist_sheet.get_all_records()
-    # watchlist_headers = watchlist_sheet.row_values(1)
-
-    # # Step 1: Find the movie in the watchlist by its slug
-    # movie = next((row for row in watchlist_records if row["SLUG"] == slug), None)
-
-    # if not movie:
-    #     return jsonify({"error": "Movie not found in the watchlist"}), 404
-
-    # # Prepare the data for the selected table
-    # selected_data = [
-    #     movie["TITLE"],
-    #     movie["SLUG"],
-    #     movie["URL"],
-    #     movie["ADDED_BY"],
-    #     movie["DATE_ADDED"],
-    #     movie["POSTER"],
-    #     movie.get("NOMINATED_BY", ""),
-    #     movie.get("VOTED_BY", ""),
-    #     datetime.now().strftime('%m/%d/%Y')  # WATCHED_DATE
-    # ]
-
-    # # Add the movie to the selected table
-    # selected_sheet.append_row(selected_data)
-
-    # # Step 2: Update the IS_SELECTED cell in the watchlist table to TRUE
-    # row_index = watchlist_records.index(movie) + 2  # Account for the header row
-    # watchlist_sheet.update_cell(row_index, watchlist_headers.index("IS_SELECTED") + 1, "TRUE")
-
-    # # Step 3: Find all nominated movies in the watchlist and add them to the nominated table
-    # nominated_movies = [row for row in watchlist_records if row.get("IS_NOMINATED", "").upper() == "TRUE"]
-
-    # for nominated_movie in nominated_movies:
-    #     # Prepare the data for the nominated table
-    #     nominated_data = [
-    #         nominated_movie["TITLE"],
-    #         nominated_movie["SLUG"],
-    #         nominated_movie["URL"],
-    #         nominated_movie["ADDED_BY"],
-    #         nominated_movie["DATE_ADDED"],
-    #         nominated_movie["POSTER"],
-    #         nominated_movie.get("NOMINATED_BY", ""),
-    #         nominated_movie.get("VOTED_BY", "")
-    #     ]
-
-    #     # Add the movie to the nominated table
-    #     nominated_sheet.append_row(nominated_data)
-
-    #     # Reset the IS_NOMINATED flag and clear VOTED_BY in the watchlist table
-    #     row_index = watchlist_records.index(nominated_movie) + 2  # Account for the header row
-    #     watchlist_sheet.update_cell(row_index, watchlist_headers.index("IS_NOMINATED") + 1, "FALSE")
-    #     watchlist_sheet.update_cell(row_index, watchlist_headers.index("VOTED_BY") + 1, "")
-
-    # return redirect(url_for("watchlist"))
     # Get the watchlist sheet
     watchlist_sheet = get_watchlist_sheet()
 
     # Get all records from the watchlist
-    watchlist_records = watchlist_sheet.get_all_records()
-    watchlist_headers = watchlist_sheet.row_values(1)
+    watchlist_records = cache.get("watchlist_records")
+    if not watchlist_records:
+        print("♻️ Fetching Watchlist records and updating cache")
+        watchlist_records = watchlist_sheet.get_all_records()
+        cache["watchlist_records"] = watchlist_records
+        save_cache(cache)
 
     # Step 1: Find the movie in the watchlist by its slug
     movie = next((row for row in watchlist_records if row["SLUG"] == slug), None)
@@ -541,9 +684,25 @@ def winning_movie():
         return jsonify({"error": "Movie not found in the watchlist"}), 404
 
     # Step 2: Update the IS_NOMINATED flag to FALSE and IS_SELECTED flag to TRUE
-    row_index = watchlist_records.index(movie) + 2  # Account for the header row
-    watchlist_sheet.update_cell(row_index, watchlist_headers.index("IS_NOMINATED") + 1, "FALSE")
-    watchlist_sheet.update_cell(row_index, watchlist_headers.index("IS_SELECTED") + 1, "TRUE")
+    try:
+        row_index = watchlist_records.index(movie) + 2  # Account for the header row
+        watchlist_headers = watchlist_sheet.row_values(1)
+
+        # Prepare the updated row data
+        movie["IS_NOMINATED"] = "FALSE"
+        movie["IS_SELECTED"] = "TRUE"
+
+        # Update the sheet
+        watchlist_sheet.update_cell(row_index, watchlist_headers.index("IS_NOMINATED") + 1, "FALSE")
+        watchlist_sheet.update_cell(row_index, watchlist_headers.index("IS_SELECTED") + 1, "TRUE")
+
+        # Update the cache
+        cache["watchlist_records"] = watchlist_records
+        save_cache(cache)
+
+    except Exception as e:
+        print(f"❌ Error updating movie: {e}")
+        return jsonify({"error": "An error occurred while updating the movie."}), 500
 
     return redirect(url_for("watchlist"))
 
@@ -564,9 +723,23 @@ def generate_voters():
     Endpoint to generate 3 random voters from the usernames table.
     Only considers users who have watched the latest movie.
     """
-    # Get the Selected sheet
-    selected_sheet = get_selected_sheet()
-    selected_records = selected_sheet.get_all_records()
+    # Load the cache if it exists
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
+
+    # Ensure logs are in the cache
+    if "logs" not in cache:
+        return jsonify({"error": "Logs are not cached. Please refresh the cache."}), 400
+
+    logs_by_user = cache["logs"]
+
+    # Get the Selected records from the cache or fetch them
+    selected_records = cache.get("selected_records")
+    if not selected_records:
+        print("♻️ Fetching Selected records and updating cache")
+        selected_sheet = get_selected_sheet()
+        selected_records = selected_sheet.get_all_records()
+        cache["selected_records"] = selected_records
+        save_cache(cache)
 
     if not selected_records:
         return jsonify({"error": "No movies found in the Selected table."}), 400
@@ -578,17 +751,18 @@ def generate_voters():
     if not latest_movie_slug:
         return jsonify({"error": "Latest movie does not have a valid slug."}), 400
 
-    # Get all usernames
-    user_sheet = get_users_sheet()
-    usernames = [row[0] for row in user_sheet.get_all_values()[1:]]  # Skip the header row
-
     # Filter users who have watched the latest movie
     eligible_users = []
-    for username in usernames:
-        did = did_user_watch_movie(username, latest_movie_slug)  # Call get_all_user_logs with the username and slug
-        print(username, did)
-        if did:  # If logs is not an empty dictionary, the user has watched the movie
+    for username, logs in logs_by_user.items():
+        # Check if the user has watched the latest movie
+        print(username, logs)
+        print(latest_movie_slug)
+        if any(log.get("url").endswith(f"{latest_movie_slug}/") for log in logs):
             eligible_users.append(username)
+            
+    print(eligible_users)
+    # if len(eligible_users) < 3:
+    #     return jsonify({"error": "Not enough eligible users to generate voters."}), 400
 
     # Select 3 random voters from the eligible users
     random_voters = random.sample(eligible_users, 3)
