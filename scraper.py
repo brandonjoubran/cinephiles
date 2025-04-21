@@ -3,7 +3,7 @@ import time
 from bs4 import BeautifulSoup
 import requests
 from utils import slugify, extract_full_date, parse_rating, resolve_letterboxd_url
-
+import lxml
 
 def parse_letterboxd_movie(link):
     # Step 1: Expand short URL if needed
@@ -12,7 +12,7 @@ def parse_letterboxd_movie(link):
 
     # Step 2: Fetch and parse the movie page
     resp = requests.get(link)
-    soup = BeautifulSoup(resp.text, 'html.parser')
+    soup = BeautifulSoup(resp.text, 'lxml')
 
     json_ld = soup.find("script", type="application/ld+json")
     if not json_ld:
@@ -36,7 +36,7 @@ def parse_letterboxd_movie(link):
 def count_review_words(url):
     try:
         resp = requests.get(url)
-        soup = BeautifulSoup(resp.text, 'html.parser')
+        soup = BeautifulSoup(resp.text, 'lxml')
         review_box = soup.select_one('div.review') or soup.select_one('div.truncate')
         if review_box:
             return len(review_box.get_text(separator=' ', strip=True).split())
@@ -66,7 +66,7 @@ def get_all_user_logs(username, target_slugs, max_pages=1):
             print(f"Page {page}: Request failed with status code {resp.status_code}")
             break
 
-        soup = BeautifulSoup(resp.text, 'html.parser')
+        soup = BeautifulSoup(resp.text, 'lxml')
         rows = soup.select('tr.diary-entry-row')
         if not rows:
             print(f"Page {page}: No diary entry rows found.")
@@ -142,7 +142,7 @@ def did_user_watch_movie(username, target_slug, max_pages=1):
             print(f"Page {page}: Request failed with status code {resp.status_code}")
             break
 
-        soup = BeautifulSoup(resp.text, 'html.parser')
+        soup = BeautifulSoup(resp.text, 'lxml')
         rows = soup.select('tr.diary-entry-row')
         if not rows:
             print(f"Page {page}: No diary entry rows found.")
@@ -182,7 +182,7 @@ def get_user_diary(username, max_pages=1):
             print(f"Page {page}: Request failed with status code {resp.status_code}")
             break
 
-        soup = BeautifulSoup(resp.text, 'html.parser')
+        soup = BeautifulSoup(resp.text, 'lxml')
         rows = soup.select('tr.diary-entry-row')
         if not rows:
             print(f"Page {page}: No diary entry rows found.")
