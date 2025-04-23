@@ -124,19 +124,29 @@ def index():
 
 @app.route('/refresh/<username>', methods=['POST'])
 def refresh_user(username):
-    logs_by_user = {}
     """
-    Fetch the list of SLUGs from the Selected sheet.
+    Refresh the logs for a specific user and update the cache.
     """
+    # Fetch the list of SLUGs from the Selected sheet
     selected_sheet = get_selected_sheet()
     selected_records = selected_sheet.get_all_records()
     selected_slugs = [row["SLUG"] for row in selected_records if "SLUG" in row]
-    for movie in selected_slugs:
-        logs_by_user[(username, movie)] = get_all_user_logs(username, movie)
 
+    # Fetch logs for the user for all selected movies
+    logs = []
+    for movie_slug in selected_slugs:
+        user_logs = get_all_user_logs(username, movie_slug)
+        logs.extend(user_logs)  # Combine logs for all movies
+
+    # Load the cache if it exists
     cache = load_cache() if os.path.exists(CACHE_FILE) else {}
-    for (u, m), logs in logs_by_user.items():
-        cache[f"{u}||{m}"] = logs
+
+    # Update the logs for the user in the cache
+    if "logs" not in cache:
+        cache["logs"] = {}
+    cache["logs"][username] = logs
+
+    # Save the updated cache
     save_cache(cache)
 
     return redirect(url_for('index'))
