@@ -27,13 +27,14 @@ def parse_rating(rating_str):
     half_star = '½' in rating_str
     return full_stars + 0.5 if half_star else full_stars
 
-def build_stats(logs_by_user):
-    stats = defaultdict(lambda: {'watched': 0, 'ratings': [], 'reviews': 0, 'words': []})
+def build_stats(logs_by_user, selected_records, rotw_counts):
+    stats = defaultdict(lambda: {'watched': 0, 'ratings': [], 'reviews': 0, 'words': [], 'rotw_count': 0})
     movie_ratings = defaultdict(list)
     first_watch = defaultdict(list)
     longest = {'user': None, 'words': 0, 'title': None, 'url': None}
     shortest = {'user': None, 'words': float('inf'), 'title': None, 'url': None}
 
+    # Process logs by user
     for username, logs in logs_by_user.items():
         for log in logs:
             title = log['title']
@@ -66,6 +67,10 @@ def build_stats(logs_by_user):
 
             first_watch[title].append((log['date'], username))
 
+    # Add ROTW counts from the cache
+    for username, count in rotw_counts.items():
+        stats[username]['rotw_count'] = count
+
     # Summary stats per user
     summary = []
     for username in sorted(stats, key=lambda u: stats[u]['watched'], reverse=True):
@@ -75,7 +80,8 @@ def build_stats(logs_by_user):
             'watched': user_stats['watched'],
             'avg_rating': round(sum(user_stats['ratings']) / len(user_stats['ratings']), 2) if user_stats['ratings'] else 0,
             'reviews': user_stats['reviews'],
-            'avg_words': round(sum(user_stats['words']) / len(user_stats['words']), 1) if user_stats['words'] else 0
+            'avg_words': round(sum(user_stats['words']) / len(user_stats['words']), 1) if user_stats['words'] else 0,
+            'rotw_count': user_stats['rotw_count']  # Add ROTW count to the summary
         })
 
     # Movie stats

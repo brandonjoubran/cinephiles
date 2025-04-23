@@ -10,6 +10,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from dotenv import load_dotenv
 import time
 import random
+from collections import defaultdict
 
 from config import load_config
 from cache import is_cache_valid, load_cache, save_cache, CACHE_FILE, flush_cache
@@ -90,9 +91,10 @@ def index():
     # Load the cache if it exists
     cache = load_cache() if os.path.exists(CACHE_FILE) else {}
 
-    if is_cache_valid() and "logs" in cache:
+    if is_cache_valid() and "logs" in cache and "rotw_counts" in cache:
         print("✅ Using cached data")
         logs_by_user = cache["logs"]  # Use the cached logs
+        rotw_counts = cache["rotw_counts"]  # Use the cached ROTW counts
     else:
         print("♻️ Recomputing cache")
         cache = {}
@@ -113,14 +115,31 @@ def index():
             for username, logs in results:
                 logs_by_user[username] = logs
 
-        # Update the cache with the new logs
+        # Calculate ROTW counts
+        selected_sheet = get_selected_sheet()
+        selected_records = selected_sheet.get_all_records()
+        rotw_counts = defaultdict(int)
+
+        for record in selected_records:
+            rotw_value = record.get("ROTW", "")
+            if rotw_value:
+                usernames = [username.strip() for username in rotw_value.split(",")]
+                for username in usernames:
+                    rotw_counts[username] += 1
+
+        # Update the cache with the new logs and ROTW counts
         cache["logs"] = logs_by_user
+        cache["rotw_counts"] = rotw_counts
         save_cache(cache)
 
     end_time = time.time()  # End timer for the entire function
     print(f"✅ Total index() execution time: {end_time - start_time:.2f} seconds")
 
-    return render_template('index.html', **build_stats(logs_by_user))
+    selected_sheet = get_selected_sheet()
+    selected_records = selected_sheet.get_all_records()
+
+    # Pass the ROTW counts to the stats builder
+    return render_template('index.html', **build_stats(logs_by_user, selected_records, rotw_counts))
 
 @app.route('/refresh/<username>', methods=['POST'])
 def refresh_user(username):
