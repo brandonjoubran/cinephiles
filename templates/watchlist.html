@@ -6,6 +6,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎬 Watchlist</title>
     <style>
+        .selected-users-list {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .selected-user {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .selected-user span {
+            font-size: 1rem;
+        }
+
+        .selected-user button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .selected-user button:hover {
+            color: #ffcccc;
+        }
+
         /* ==== Global Reset & Viewport Fix ==== */
         html,
         body {
@@ -1112,22 +1145,42 @@
         </div>
     </div>
 
-    <!-- Complete Movie Modal -->
-    <div id="confirmCompleteModal" class="modal-overlay hidden">
-        <div class="modal">
-            <h2>Confirm Selection</h2>
-            <p>Are you sure you want to mark this movie as watched? It will reset the data for the week.</p>
-            <div class="modal-actions">
-                <form action="" method="POST" style="display: contents;">
-                    <input type="hidden" name="slug" id="completeMovieSlug" />
-                    <div class="modal-actions">
-                        <button type="button" class="close-btn">Cancel</button>
-                        <button type="submit" class="submit-btn">Confirm</button>
-                    </div>
-                </form>
+   <!-- Complete Movie Modal -->
+<div id="confirmCompleteModal" class="modal-overlay hidden">
+    <div class="modal">
+        <h2>Confirm Selection</h2>
+        <p>Are you sure you want to mark this movie as watched? It will reset the data for the week.</p>
+
+        <form id="completeMovieForm" action="" method="POST" style="display: contents;">
+            <input type="hidden" name="slug" id="completeMovieSlug" />
+
+            <div class="review-of-week-section">
+                <h3>Review of the Week?</h3>
+                <p>Select users who will win "Review of the Week":</p>
+
+                <div class="dropdown-container">
+                    <select id="reviewDropdown" class="review-dropdown">
+                        <option value="" disabled selected>Select a username</option>
+                        {% for username in usernames %}
+                        <option value="{{ username }}">{{ username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div id="selectedUsersList" class="selected-users-list">
+                    <!-- Selected usernames appear here -->
+                </div>
             </div>
-        </div>
+
+            <div class="modal-actions">
+                <button type="button" class="close-btn">Cancel</button>
+                <button type="submit" class="submit-btn">Confirm</button>
+            </div>
+        </form>
     </div>
+</div>
+
+    
 
     <script>
         const addModal = document.getElementById("addModal");
@@ -1155,6 +1208,46 @@
         const completeMovieSlugInput = document.getElementById("completeMovieSlug");
 
         const deleteSlugInput = document.getElementById("deleteSlug");
+
+        const reviewDropdown = document.getElementById("reviewDropdown");
+        const selectedUsersList = document.getElementById("selectedUsersList");
+
+        reviewDropdown.addEventListener("change", () => {
+            const selectedUser = reviewDropdown.value;
+
+            // Check if already selected
+            const existingUser = document.querySelector(`.selected-user[data-username="${selectedUser}"]`);
+
+            if (existingUser) {
+                existingUser.remove(); // toggle off
+            } else {
+                const userElement = document.createElement("div");
+                userElement.classList.add("selected-user");
+                userElement.setAttribute("data-username", selectedUser);
+
+                userElement.innerHTML = `
+            <span>${selectedUser}</span>
+            <input type="hidden" name="review_of_week[]" value="${selectedUser}" />
+        `;
+
+                selectedUsersList.appendChild(userElement);
+            }
+
+            reviewDropdown.value = ""; // Reset dropdown
+        });
+
+        const completeMovieForm = document.querySelector("#confirmCompleteModal form");
+        // const selectedUsersList = document.getElementById("selectedUsersList");
+
+        // Confirm on submit if empty
+        document.getElementById("completeMovieForm").addEventListener("submit", (event) => {
+            if (selectedUsersList.children.length === 0) {
+                const confirmLeaveBlank = confirm("Are you sure you want to leave 'Review of the Week' blank?");
+                if (!confirmLeaveBlank) {
+                    event.preventDefault();
+                }
+            }
+        });
 
         // Open the Add Movie Modal
         addBtn.addEventListener("click", () => {
@@ -1230,7 +1323,8 @@
                 completeMovieSlugInput.value = movieSlug; // Set the slug in the hidden input field
 
                 // Update the form's action dynamically
-                const completeMovieForm = document.querySelector("#confirmCompleteModal form");
+                const completeMovieForm = document.getElementById("completeMovieForm");
+                console.log(completeMovieForm);
                 completeMovieForm.action = `/mark-watched/${movieSlug}`;
 
                 completeMovieModal.classList.remove("hidden"); // Show the modal

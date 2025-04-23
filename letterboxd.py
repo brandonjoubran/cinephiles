@@ -361,7 +361,6 @@ def delete_movie():
 
 @app.route('/mark-watched/<movie_slug>', methods=['POST'])
 def mark_watched(movie_slug):
-    # return jsonify({"error": "This endpoint is not implemented yet."}), 501
     # Load the cache if it exists
     cache = load_cache() if os.path.exists(CACHE_FILE) else {}
 
@@ -403,11 +402,15 @@ def mark_watched(movie_slug):
         return jsonify({"error": "Movie not found in the watchlist"}), 404
 
     row_index = watchlist_records.index(movie) + 2  # Account for the header row
-
+    print(request.form)
+    # Get the "Review of the Week" list from the form
+    review_of_week_users = request.form.getlist('review_of_week[]')
+    print("Review of the Week Users: ", review_of_week_users)
+    review_of_week_str = ", ".join(review_of_week_users)  # Convert the list to a comma-separated string
+    # return
     # Check if the movie is selected
     if str(movie.get("IS_SELECTED", "")).upper() == "TRUE":
-        # Step 1: Push all IS_NOMINATED movies to the Nominated table, except ignored slugs
-        # ignored_slugs = {"the-shawshank-redemption", "brazil", "moneyball"}
+        # Step 1: Push all IS_NOMINATED movies to the Nominated table
         for idx, nominated_movie in enumerate(watchlist_records):
             if str(nominated_movie.get("IS_NOMINATED", "")).upper() == "TRUE":
                 # Prepare the data for the nominated table
@@ -448,6 +451,7 @@ def mark_watched(movie_slug):
                 nominated_movie["IS_SELECTED"] = ""
                 nominated_movie["NOMINATED_BY"] = ""
 
+        print("ROTW: ", review_of_week_str)
         # Step 2: Push the IS_SELECTED movie to the Selected table
         selected_data = [
             movie["TITLE"],
@@ -458,7 +462,8 @@ def mark_watched(movie_slug):
             movie["POSTER"],
             movie.get("NOMINATED_BY", ""),
             movie.get("VOTED_BY", ""),
-            datetime.now().strftime('%m/%d/%Y')  # WATCHED_DATE
+            datetime.now().strftime('%m/%d/%Y'),  # WATCHED_DATE
+            review_of_week_str  # Add the ROTW column with the list of names
         ]
 
         # Add the movie to the selected table
@@ -472,7 +477,8 @@ def mark_watched(movie_slug):
             "POSTER": movie["POSTER"],
             "NOMINATED_BY": movie.get("NOMINATED_BY", ""),
             "VOTED_BY": movie.get("VOTED_BY", ""),
-            "WATCHED_DATE": datetime.now().strftime('%m/%d/%Y')
+            "WATCHED_DATE": datetime.now().strftime('%m/%d/%Y'),
+            "ROTW": review_of_week_str  # Add the ROTW field to the cache
         })
 
         # Reset IS_SELECTED in the watchlist table
