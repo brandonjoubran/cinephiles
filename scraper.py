@@ -33,9 +33,14 @@ def parse_letterboxd_movie(link):
         "url": link
     }
 
-def count_review_words(url):
+def count_review_words(url, headers):
     try:
-        resp = requests.get(url)
+        time.sleep(1)
+        resp = requests.get(url, headers=headers)
+        if resp.status_code != 200:
+            print(f"Request failed with status code (review count) {resp.status_code}")
+            return 0
+        # Parse the response content
         soup = BeautifulSoup(resp.text, 'html.parser')
         review_box = soup.select_one('div.review') or soup.select_one('div.truncate')
         if review_box:
@@ -54,6 +59,10 @@ def get_all_user_logs(username, target_slugs, max_pages=1):
     #     target_slugs.append(target_slug)
 
     # Start timer for the entire function
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
     function_start = time.time()
 
     for page in range(1, max_pages + 1):
@@ -61,7 +70,7 @@ def get_all_user_logs(username, target_slugs, max_pages=1):
         page_start = time.time()
 
         url = f'https://letterboxd.com/{username}/films/diary/page/{page}/'
-        resp = requests.get(url)
+        resp = requests.get(url, headers=headers)
         if resp.status_code != 200:
             print(f"Page {page}: Request failed with status code {resp.status_code}")
             break
@@ -100,7 +109,7 @@ def get_all_user_logs(username, target_slugs, max_pages=1):
 
             # Start timer for counting review words
             review_start = time.time()
-            word_count = count_review_words(link) if has_review else 0
+            word_count = count_review_words(link, headers) if has_review else 0
             review_end = time.time()
             if has_review:
                 print(f"Counting review words took {review_end - review_start:.2f} seconds")
@@ -120,7 +129,7 @@ def get_all_user_logs(username, target_slugs, max_pages=1):
         print(f"Page {page}: Processing rows took {rows_end - rows_start:.2f} seconds")
 
         # Add a delay to avoid overwhelming the server
-        time.sleep(0.2)
+        time.sleep(1)
 
     # End timer for the entire function
     function_end = time.time()
@@ -164,7 +173,7 @@ def did_user_watch_movie(username, target_slug, max_pages=1):
             return True
             
         # Add a delay to avoid overwhelming the server
-        time.sleep(0.2)
+        time.sleep(1)
 
     # End timer for the entire function
     function_end = time.time()
@@ -215,6 +224,6 @@ def get_user_diary(username, max_pages=1):
             })
 
         # Add a delay to avoid overwhelming the server
-        time.sleep(0.2)
+        time.sleep(1)
 
     return logs

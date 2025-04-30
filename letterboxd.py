@@ -108,12 +108,20 @@ def index():
             logs = get_all_user_logs(username, selected_slugs)
             return username, logs
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            user_sheet = get_users_sheet()
-            usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
-            results = executor.map(fetch_or_load_logs, usernames)
-            for username, logs in results:
-                logs_by_user[username] = logs
+        # with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        #     user_sheet = get_users_sheet()
+        #     usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
+        #     results = executor.map(fetch_or_load_logs, usernames)
+        #     for username, logs in results:
+        #         logs_by_user[username] = logs
+
+        # Sequential processing
+        user_sheet = get_users_sheet()
+        usernames = [row[0] for row in user_sheet.get_all_values()[1:]]  # Skip the header row
+
+        for username in usernames:
+            username, logs = fetch_or_load_logs(username)
+            logs_by_user[username] = logs
 
         # Calculate ROTW counts
         selected_sheet = get_selected_sheet()
