@@ -159,16 +159,18 @@
             {% for user in summary %}
             <div class="summary-card">
                 <form action="{{ url_for('refresh_user', username=user.username) }}" method="post" style="display: flex; flex-direction: column; gap: 6px;">
-                    <div>
-                        <strong>{{ user.username }}</strong>
-                        {{ user.watched }} watched<br>
-                        Avg rating: <span class="highlight">{{ user.avg_rating }}</span><br>
-                        {{ user.reviews }} reviews<br>
-                        Avg words: <span class="highlight">{{ user.avg_words }}</span><br>
-                        ROTW: <span class="highlight">
-                            {% for _ in range(user.rotw_count) %}🏆{% endfor %}
-                        </span><br>
-                    </div>
+                    <a href="https://letterboxd.com/{{ user.username }}/tag/onlycinephiles/films/" target="_blank" style="text-decoration: none; color: inherit; display: block;">
+                        <div>
+                            <strong>{{ user.username }}</strong>
+                            {{ user.watched }} watched<br>
+                            Avg rating: <span class="highlight">{{ user.avg_rating }}</span><br>
+                            {{ user.reviews }} reviews<br>
+                            Avg words: <span class="highlight">{{ user.avg_words }}</span><br>
+                            ROTW: <span class="highlight">
+                                {% for _ in range(user.rotw_count) %}🏆{% endfor %}
+                            </span><br>
+                        </div>
+                    </a>
                     <button type="submit" style="margin-top: 6px; align-self: flex-start; padding: 4px 8px; font-size: 0.85rem; background-color: #e0f7fa; border: 1px solid #b2ebf2; border-radius: 4px; cursor: pointer;">
                         🔄 Refresh
                     </button>
