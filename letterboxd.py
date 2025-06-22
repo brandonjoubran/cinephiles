@@ -14,7 +14,7 @@ from collections import defaultdict
 
 from config import load_config
 from cache import is_cache_valid, load_cache, save_cache, CACHE_FILE, flush_cache
-from scraper import get_all_user_logs, did_user_watch_movie
+from scraper import get_all_user_logs, did_user_watch_movie, user_watched_last_film
 from utils import expand_short_url, build_stats, slugify
 from db import get_watchlist_sheet, get_users_sheet, get_nominations_sheet, get_selected_sheet
 
@@ -88,42 +88,36 @@ def index():
 
     logs_by_user = {}
 
-    # Load the cache if it exists
+    # 🔧 Load the cache if it exists
     cache = load_cache() if os.path.exists(CACHE_FILE) else {}
 
     if is_cache_valid() and "logs" in cache and "rotw_counts" in cache:
         print("✅ Using cached data")
-        logs_by_user = cache["logs"]  # Use the cached logs
-        rotw_counts = cache["rotw_counts"]  # Use the cached ROTW counts
+        logs_by_user = cache["logs"]
+        rotw_counts = cache["rotw_counts"]
     else:
         print("♻️ Recomputing cache")
         cache = {}
 
+        # 🔧 Initialize review word count cache
+        review_word_counts_cache = cache.get("review_word_counts", {})
+
         def fetch_or_load_logs(username):
             print(f"⏳ Fetching diary for {username}")
-            # Fetch the list of SLUGs from the Selected sheet
             selected_sheet = get_selected_sheet()
             selected_records = selected_sheet.get_all_records()
             selected_slugs = [row["SLUG"] for row in selected_records if "SLUG" in row]
-            logs = get_all_user_logs(username, selected_slugs)
+            logs = get_all_user_logs(username, selected_slugs, review_word_counts_cache)
             return username, logs
 
-        # with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        #     user_sheet = get_users_sheet()
-        #     usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
-        #     results = executor.map(fetch_or_load_logs, usernames)
-        #     for username, logs in results:
-        #         logs_by_user[username] = logs
-
-        # Sequential processing
         user_sheet = get_users_sheet()
-        usernames = [row[0] for row in user_sheet.get_all_values()[1:]]  # Skip the header row
+        usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
 
         for username in usernames:
             username, logs = fetch_or_load_logs(username)
             logs_by_user[username] = logs
 
-        # Calculate ROTW counts
+        # ✅ Recalculate ROTW counts
         selected_sheet = get_selected_sheet()
         selected_records = selected_sheet.get_all_records()
         rotw_counts = defaultdict(int)
@@ -131,22 +125,21 @@ def index():
         for record in selected_records:
             rotw_value = record.get("ROTW", "")
             if rotw_value:
-                usernames = [username.strip() for username in rotw_value.split(",")]
-                for username in usernames:
+                for username in map(str.strip, rotw_value.split(",")):
                     rotw_counts[username] += 1
 
-        # Update the cache with the new logs and ROTW counts
+        # 🔧 Update cache with logs, ROTW counts, and review word counts
         cache["logs"] = logs_by_user
         cache["rotw_counts"] = rotw_counts
+        cache["review_word_counts"] = review_word_counts_cache
         save_cache(cache)
 
-    end_time = time.time()  # End timer for the entire function
+    end_time = time.time()
     print(f"✅ Total index() execution time: {end_time - start_time:.2f} seconds")
 
     selected_sheet = get_selected_sheet()
     selected_records = selected_sheet.get_all_records()
 
-    # Pass the ROTW counts to the stats builder
     return render_template('index.html', **build_stats(logs_by_user, selected_records, rotw_counts))
 
 @app.route('/refresh/<username>', methods=['POST'])
@@ -761,14 +754,72 @@ def clear_cache():
     except Exception as e:
         return jsonify({"error": f"An error occurred while clearing the cache: {e}"}), 500
 
+# @app.route('/generate-voters', methods=['GET'])
+# def generate_voters():
+#     """
+#     Endpoint to generate 3 random voters from the usernames table.
+#     Only considers users who have watched the latest movie.
+#     """
+#     # Load the cache if it exists
+#     cache = load_cache() if os.path.exists(CACHE_FILE) else {}
+
+#     # Get the Selected records from the cache or fetch them
+#     selected_records = cache.get("selected_records")
+#     if not selected_records:
+#         print("♻️ Fetching Selected records and updating cache")
+#         selected_sheet = get_selected_sheet()
+#         selected_records = selected_sheet.get_all_records()
+#         cache["selected_records"] = selected_records
+#         save_cache(cache)
+
+#     if not selected_records:
+#         return jsonify({"error": "No movies found in the Selected table."}), 400
+
+#     # Get the latest movie (last entry in the Selected table)
+#     latest_movie = selected_records[-1]
+#     latest_movie_slug = latest_movie.get("SLUG")
+
+#     if not latest_movie_slug:
+#         return jsonify({"error": "Latest movie does not have a valid slug."}), 400
+
+#     # Load logs from the cache or fallback to checking each user individually
+#     logs_by_user = cache.get("logs")
+#     eligible_users = []
+
+#     if logs_by_user:
+#         print("✅ Using cached logs")
+#         # Filter users who have watched the latest movie using cached logs
+#         for username, logs in logs_by_user.items():
+#             if any(log.get("url").endswith(f"{latest_movie_slug}/") for log in logs):
+#                 eligible_users.append(username)
+#     else:
+#         print("♻️ Logs not found in cache. Checking each user individually.")
+#         user_sheet = get_users_sheet()
+#         usernames = [row[0] for row in user_sheet.get_all_values()[1:]]  # Skip the header row
+
+#         # Check each user individually using `did_user_watch_movie`
+#         for username in usernames:
+#             if did_user_watch_movie(username, latest_movie_slug):
+#                 eligible_users.append(username)
+
+#     # if len(eligible_users) < 3:
+#     #     return jsonify({"error": "Not enough eligible users to generate voters."}), 400
+
+#     # Select 3 random voters from the eligible users
+#     random_voters = random.sample(eligible_users, 3)
+#     return jsonify({"voters": random_voters}), 200
+
 @app.route('/generate-voters', methods=['GET'])
 def generate_voters():
     """
     Endpoint to generate 3 random voters from the usernames table.
-    Only considers users who have watched the latest movie.
+    Only considers users who have watched the latest movie (checked live via tag page).
     """
+    print("🔄 Starting generate_voters endpoint")
+
     # Load the cache if it exists
     cache = load_cache() if os.path.exists(CACHE_FILE) else {}
+    print(f"📦 Cache loaded: {bool(cache)}")
 
     # Get the Selected records from the cache or fetch them
     selected_records = cache.get("selected_records")
@@ -778,42 +829,45 @@ def generate_voters():
         selected_records = selected_sheet.get_all_records()
         cache["selected_records"] = selected_records
         save_cache(cache)
+    else:
+        print(f"✅ Using {len(selected_records)} selected records from cache")
 
     if not selected_records:
+        print("❌ No movies found in the Selected table.")
         return jsonify({"error": "No movies found in the Selected table."}), 400
 
     # Get the latest movie (last entry in the Selected table)
     latest_movie = selected_records[-1]
     latest_movie_slug = latest_movie.get("SLUG")
+    print(f"🎬 Latest movie slug: {latest_movie_slug}")
 
     if not latest_movie_slug:
+        print("❌ Latest movie does not have a valid slug.")
         return jsonify({"error": "Latest movie does not have a valid slug."}), 400
 
-    # Load logs from the cache or fallback to checking each user individually
-    logs_by_user = cache.get("logs")
+    # Get all usernames
+    user_sheet = get_users_sheet()
+    usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
+    print(f"👥 Usernames loaded: {usernames}")
+
+    # Check each user using the new function
     eligible_users = []
+    for username in usernames:
+        print(f"🔍 Checking if {username} watched {latest_movie_slug}...")
+        watched = user_watched_last_film(username, latest_movie_slug)
+        print(f"    {username} watched: {watched}")
+        if watched:
+            eligible_users.append(username)
 
-    if logs_by_user:
-        print("✅ Using cached logs")
-        # Filter users who have watched the latest movie using cached logs
-        for username, logs in logs_by_user.items():
-            if any(log.get("url").endswith(f"{latest_movie_slug}/") for log in logs):
-                eligible_users.append(username)
-    else:
-        print("♻️ Logs not found in cache. Checking each user individually.")
-        user_sheet = get_users_sheet()
-        usernames = [row[0] for row in user_sheet.get_all_values()[1:]]  # Skip the header row
+    print(f"✅ Eligible users: {eligible_users}")
 
-        # Check each user individually using `did_user_watch_movie`
-        for username in usernames:
-            if did_user_watch_movie(username, latest_movie_slug):
-                eligible_users.append(username)
-
+    sample_size = min(3, len(eligible_users))
     # if len(eligible_users) < 3:
+    #     print("❌ Not enough eligible users to generate voters.")
     #     return jsonify({"error": "Not enough eligible users to generate voters."}), 400
 
-    # Select 3 random voters from the eligible users
-    random_voters = random.sample(eligible_users, 3)
+    random_voters = random.sample(eligible_users, sample_size)
+    print(f"🎲 Selected voters: {random_voters}")
     return jsonify({"voters": random_voters}), 200
 
 if __name__ == '__main__':
