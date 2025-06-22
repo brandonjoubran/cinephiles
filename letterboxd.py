@@ -260,6 +260,35 @@ def watchlist():
         combined_records.append(selected_movie)  # Add the selected movie first
     combined_records += sorted_nominated_records + sorted_remaining_records + sorted_watched_records
 
+    # Load logs for ratings (from cache if available)
+    logs_by_user = {}
+    cache_logs = cache.get("logs")
+    if cache_logs:
+        logs_by_user = cache_logs
+
+    # Build a mapping from SLUG to selected record for quick lookup
+    selected_by_slug = {row["SLUG"]: row for row in selected_records}
+
+    # Build a mapping from SLUG to all ratings from logs
+    ratings_by_slug = defaultdict(list)
+    for user_logs in logs_by_user.values():
+        for log in user_logs:
+            slug = log.get("url", "").rstrip("/").split("/")[-1]
+            if log.get("rating") is not None:
+                ratings_by_slug[slug].append(log["rating"])
+
+    # Annotate each movie with WATCHED_DATE and AVG_RATING if watched
+    for row in combined_records:
+        slug = row.get("SLUG")
+        selected_row = selected_by_slug.get(slug)
+        if selected_row and selected_row.get("WATCHED_DATE"):
+            row["WATCHED_DATE"] = selected_row["WATCHED_DATE"]
+            ratings = ratings_by_slug.get(slug, [])
+            row["AVG_RATING"] = round(sum(ratings) / len(ratings), 2) if ratings else None
+        else:
+            row["WATCHED_DATE"] = None
+            row["AVG_RATING"] = None
+
     # Load usernames from the Users sheet
     user_sheet = get_users_sheet()
     usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
