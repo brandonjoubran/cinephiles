@@ -113,7 +113,7 @@
         }
 
         /* ==== Navbar ==== */
-        .navbar {
+        /* .navbar {
             width: 100%;
             background-color: #ffffff;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
@@ -148,7 +148,7 @@
         .nav-item.active {
             background-color: #007bff;
             color: white;
-        }
+        } */
 
         /* ==== Logo ==== */
         .logo-container {
@@ -696,6 +696,37 @@
         /* ==== Mobile ==== */
         @media (max-width: 600px) {
 
+            /* ==== Navbar ==== */
+            .navbar {
+                display: flex;
+                justify-content: center;
+                gap: 30px;
+                margin-bottom: 30px;
+            }
+
+            .nav-item {
+                font-weight: 600;
+                color: #333;
+                text-decoration: none;
+            }
+
+            .nav-container {
+                display: flex;
+                gap: 30px;
+                justify-content: center;
+            }
+
+            .nav-item:hover {
+                background-color: #f0f0f0;
+                color: #000;
+            }
+
+            .nav-item.active {
+                background-color: none;
+                color: #333;
+                text-decoration: underline;
+            }
+
             .not-nom {
                 display: none;
             }
@@ -867,6 +898,48 @@
                 display: none;
             }
 
+            @media (min-width: 601px) {
+
+                /* ==== Navbar ==== */
+                .navbar {
+                    width: 100%;
+                    background-color: #ffffff;
+                    box-shadow: 0 2px 8px rgba(241, 18, 18, 0.05);
+                    padding: 12px 20px;
+                    display: flex;
+                    justify-content: center;
+                    margin-bottom: 20px;
+                }
+
+                .nav-container {
+                    display: flex;
+                    gap: 20px;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                }
+
+                .nav-item {
+                    text-decoration: none;
+                    font-weight: bold;
+                    font-size: 1.1rem;
+                    color: #555;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    transition: background-color 0.2s, color 0.2s;
+                }
+
+                .nav-item:hover {
+                    background-color: #f0f0f0;
+                    color: #000;
+                }
+
+                .nav-item.active {
+                    background-color: #007bff;
+                    color: white;
+                }
+
+            }
+
             /* .card-details {
                 display: block !important;
                 padding: 0;
@@ -894,6 +967,7 @@
         <div class="nav-container">
             <a href="{{ url_for('index') }}" class="nav-item">📊 Stats</a>
             <a href="{{ url_for('watchlist') }}" class="nav-item active">🎬 Watchlist</a>
+            <a href="{{ url_for('meetings') }}" class="nav-item">📅 Meetings</a>
         </div>
     </nav>
     <div class="logo-container">
@@ -971,14 +1045,19 @@
                         {% endif %}
 
                         {% if movie.IS_WATCHED %}
-                        <div class="card-watched-label">                            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <div class="card-watched-label">
+                            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <span style="font-size: 1.1em;">✅ <strong>Watched</strong></span>
-                                <span style="color: #00796b; border-left: 2px solid #b2dfdb; padding-left: 10px; margin-left: 8px;">
-                                    <span style="font-size: 0.98em;">📅 Watched: <strong>{{ movie.WATCHED_DATE }}</strong></span>
+                                <span
+                                    style="color: #00796b; border-left: 2px solid #b2dfdb; padding-left: 10px; margin-left: 8px;">
+                                    <span style="font-size: 0.98em;">📅 Date: <strong>{{ movie.WATCHED_DATE
+                                            }}</strong></span>
                                 </span>
                                 {% if movie.AVG_RATING %}
-                                <span style="color: #ff9800; border-left: 2px solid #ffe0b2; padding-left: 10px; margin-left: 8px;">
-                                    <span style="font-size: 0.98em;">⭐ Avg rating: <strong>{{ movie.AVG_RATING }}</strong></span>
+                                <span
+                                    style="color: #ff9800; border-left: 2px solid #ffe0b2; padding-left: 10px; margin-left: 8px;">
+                                    <span style="font-size: 0.98em;">⭐ Avg rating: <strong>{{ movie.AVG_RATING
+                                            }}</strong></span>
                                 </span>
                                 {% endif %}
                             </div>
@@ -1154,42 +1233,42 @@
         </div>
     </div>
 
-   <!-- Complete Movie Modal -->
-<div id="confirmCompleteModal" class="modal-overlay hidden">
-    <div class="modal">
-        <h2>Confirm Selection</h2>
-        <p>Are you sure you want to mark this movie as watched? It will reset the data for the week.</p>
+    <!-- Complete Movie Modal -->
+    <div id="confirmCompleteModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>Confirm Selection</h2>
+            <p>Are you sure you want to mark this movie as watched? It will reset the data for the week.</p>
 
-        <form id="completeMovieForm" action="" method="POST" style="display: contents;">
-            <input type="hidden" name="slug" id="completeMovieSlug" />
+            <form id="completeMovieForm" action="" method="POST" style="display: contents;">
+                <input type="hidden" name="slug" id="completeMovieSlug" />
 
-            <div class="review-of-week-section">
-                <h3>Review of the Week?</h3>
-                <p>Select users who will win "Review of the Week":</p>
+                <div class="review-of-week-section">
+                    <h3>Review of the Week?</h3>
+                    <p>Select users who will win "Review of the Week":</p>
 
-                <div class="dropdown-container">
-                    <select id="reviewDropdown" class="review-dropdown">
-                        <option value="" disabled selected>Select a username</option>
-                        {% for username in usernames %}
-                        <option value="{{ username }}">{{ username }}</option>
-                        {% endfor %}
-                    </select>
+                    <div class="dropdown-container">
+                        <select id="reviewDropdown" class="review-dropdown">
+                            <option value="" disabled selected>Select a username</option>
+                            {% for username in usernames %}
+                            <option value="{{ username }}">{{ username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div id="selectedUsersList" class="selected-users-list">
+                        <!-- Selected usernames appear here -->
+                    </div>
                 </div>
 
-                <div id="selectedUsersList" class="selected-users-list">
-                    <!-- Selected usernames appear here -->
+                <div class="modal-actions">
+                    <button type="button" class="close-btn">Cancel</button>
+                    <button type="submit" class="submit-btn">Confirm</button>
                 </div>
-            </div>
-
-            <div class="modal-actions">
-                <button type="button" class="close-btn">Cancel</button>
-                <button type="submit" class="submit-btn">Confirm</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
-</div>
 
-    
+
 
     <script>
         const addModal = document.getElementById("addModal");

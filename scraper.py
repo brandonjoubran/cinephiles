@@ -87,12 +87,21 @@ def count_review_words(url, headers):
         # Parse the response content
         request_start = time.time()
         soup = BeautifulSoup(resp.text, 'html.parser')
-        review_box = soup.select_one('div.review') or soup.select_one('div.truncate')
+        # review_box = soup.select_one('div.review') or soup.select_one('div.truncate')
+        # if review_box:
+        #     request_end = time.time()
+        #     print(f"    Parsing review took {request_end - request_start:.2f} seconds")
+        #     return len(review_box.get_text(separator=' ', strip=True).split())
+        review_box = soup.select_one('div.js-review-body')
         if review_box:
-            request_end = time.time()
-            print(f"    Parsing review took {request_end - request_start:.2f} seconds")
-            return len(review_box.get_text(separator=' ', strip=True).split())
-    except:
+            # Join all <p> tags inside the review body
+            paragraphs = review_box.find_all('p')
+            review_text = " ".join(p.get_text(separator=' ', strip=True) for p in paragraphs)
+            word_count = len(review_text.split())
+            print(f"    Parsing review took {time.time() - request_end:.2f} seconds")
+            return word_count
+    except Exception as e:
+        print(f"Error fetching or parsing review for {url}: {e}")
         pass
     return 0
 
@@ -114,6 +123,7 @@ def get_all_user_logs(username, target_slugs, review_word_counts_cache=None, max
         url = f'https://letterboxd.com/{username}/films/diary/page/{page}/'
         try:
             resp = requests.get(url, headers=headers)
+            print(f"Page {page}: Request to {url} response {resp}")
         except requests.exceptions.RequestException as e:
             print(f"Page {page}: Request failed due to exception: {e}")
             break
@@ -129,6 +139,7 @@ def get_all_user_logs(username, target_slugs, review_word_counts_cache=None, max
 
         soup = BeautifulSoup(resp.text, 'html.parser')
         rows = soup.select('tr.diary-entry-row')
+        print(f"Page {page}: Found {len(rows)} diary entry rows")
         if not rows:
             print(f"Page {page}: No diary entry rows found.")
             break
@@ -139,6 +150,7 @@ def get_all_user_logs(username, target_slugs, review_word_counts_cache=None, max
         rows_start = time.time()
 
         for row in rows:
+            # print(row)
             poster = row.select_one('div[data-film-slug]')
             if not poster:
                 continue
@@ -149,9 +161,14 @@ def get_all_user_logs(username, target_slugs, review_word_counts_cache=None, max
 
             found_slugs.add(slug)
 
-            title_tag = row.select_one('h3.headline-3 a')
+            # --- Updated title/link extraction ---
+            h2_tag = row.select_one('h2.name.-primary.prettify')
+            title_tag = h2_tag.find('a') if h2_tag else None
+            print(f"Processing slug: {slug} for user {username}")
             title = title_tag.text.strip() if title_tag else "NA"
             link = f"https://letterboxd.com{title_tag['href']}" if title_tag else ''
+            # link = f"https://letterboxd.com/{username}/film/{slug}/"
+
             date_tag = row.select_one('td.td-day a')
             date = extract_full_date(date_tag['href']) if date_tag and date_tag.has_attr('href') else 'Unknown date'
             rating_tag = row.select_one('div.hide-for-owner span.rating')

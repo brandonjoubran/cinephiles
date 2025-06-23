@@ -16,7 +16,7 @@ from config import load_config
 from cache import is_cache_valid, load_cache, save_cache, CACHE_FILE, flush_cache
 from scraper import get_all_user_logs, did_user_watch_movie, user_watched_last_film
 from utils import expand_short_url, build_stats, slugify
-from db import get_watchlist_sheet, get_users_sheet, get_nominations_sheet, get_selected_sheet
+from db import get_watchlist_sheet, get_users_sheet, get_nominations_sheet, get_selected_sheet, get_meetings_sheet, get_selected_records, get_meetings_records
 
 app = Flask(__name__)
 
@@ -25,6 +25,12 @@ CONFIG = load_config()
 USERNAMES = CONFIG['usernames']
 MOVIES = CONFIG['movies']
 load_dotenv()
+
+def parse_time(t):
+    try:
+        return datetime.strptime(t, "%H:%M")
+    except Exception:
+        return None
 
 def get_poster(movie_title, release_year):
     # Your TMDb API key
@@ -898,6 +904,99 @@ def generate_voters():
     random_voters = random.sample(eligible_users, sample_size)
     print(f"🎲 Selected voters: {random_voters}")
     return jsonify({"voters": random_voters}), 200
+
+@app.route('/meetings')
+def meetings():
+    print("🔄 Loading meetings page")
+    meetings_records = get_meetings_records()
+    print(f"📅 Loaded {len(meetings_records)} meetings from sheet")
+    meetings_records.sort(key=lambda m: m.get("DATE", ""), reverse=False)
+    selected_movies = get_selected_records()
+    print(f"🎬 Loaded {len(selected_movies)} movies from Selected sheet")
+    user_sheet = get_users_sheet()
+    usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
+    print(f"👥 Loaded {len(usernames)} usernames")
+    now = datetime.now()
+    print(f"🕒 Current datetime: {now}")
+
+    # Add duration to each meeting
+    for meeting in meetings_records:
+        start = parse_time(meeting.get("START_TIME", ""))
+        end = parse_time(meeting.get("END_TIME", ""))
+        if start and end:
+            duration = end - start
+            total_minutes = int(duration.total_seconds() // 60)
+            hours = total_minutes // 60
+            minutes = total_minutes % 60
+            if hours > 0:
+                if minutes > 0:
+                    meeting["DURATION"] = f"{hours} hr {minutes} min"
+                else:
+                    meeting["DURATION"] = f"{hours} hr"
+            else:
+                meeting["DURATION"] = f"{minutes} min"
+        else:
+            meeting["DURATION"] = "—"
+
+    return render_template(
+        "meetings.html",
+        meetings=meetings_records,
+        selected_movies=selected_movies,
+        usernames=usernames,
+        now=now
+    )
+
+@app.route('/add_meeting', methods=['POST'])
+def add_meeting():
+    print("➕ Adding a new meeting")
+    meetings_sheet = get_meetings_sheet()
+    selected_sheet = get_selected_sheet()
+    selected_records = selected_sheet.get_all_records()
+    movie_slug = request.form.get('movie_slug')
+    print(f"  - Movie slug: {movie_slug}")
+    movie = next((m for m in selected_records if m['SLUG'] == movie_slug), None)
+    movie_name = movie['TITLE'] if movie else ''
+    # --- Date formatting ---
+    date = request.form.get('date')
+    if date:
+        date_obj = datetime.strptime(date, '%Y-%m-%d')
+        date_str = date_obj.strftime('%m/%d/%Y')
+    else:
+        date_str = ''
+    print(f"  - Date: {date_str}")
+    # --- Time formatting ---
+    start_time = request.form.get('start_time')  # '19:23'
+    end_time = request.form.get('end_time')
+    print(f"  - Start time: {start_time}")
+    print(f"  - End time: {end_time}")
+    participants = request.form.get('participants', '')
+    print(f"  - Participants: {participants}")
+
+    meetings_sheet.append_row([
+        date_str,
+        movie_name,
+        movie_slug,
+        start_time,
+        end_time,
+        participants
+    ])
+    print("✅ Meeting added to sheet")
+
+    # Update the cache
+    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
+    meetings_records = cache.get("meetings_records") or []
+    meetings_records.append({
+        "DATE": date_str,
+        "MOVIE_NAME": movie_name,
+        "MOVIE_SLUG": movie_slug,
+        "START_TIME": start_time,
+        "END_TIME": end_time,
+        "PARTICIPANTS": participants
+    })
+    cache["meetings_records"] = meetings_records
+    save_cache(cache)
+
+    return redirect(url_for('meetings'))
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
