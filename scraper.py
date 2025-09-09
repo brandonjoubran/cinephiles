@@ -27,11 +27,11 @@ def user_watched_last_film(username, movie_slug):
             return False
         parse_start = time.time()
         soup = BeautifulSoup(resp.text, "html.parser")
-        film_divs = soup.select('div[data-film-slug]')
+        film_divs = soup.select('div[data-item-slug]')
         parse_end = time.time()
         print(f"    ⏱️ Parsing HTML took {parse_end - parse_start:.2f} seconds")
         for div in film_divs:
-            found_slug = div['data-film-slug']
+            found_slug = div['data-item-slug']
             print(f"        - Found slug: {found_slug}")
             if found_slug == movie_slug:
                 print(f"    ✅ {username} HAS watched {movie_slug} (found in tag list)")
@@ -151,12 +151,16 @@ def get_all_user_logs(username, target_slugs, review_word_counts_cache=None, max
 
         for row in rows:
             # print(row)
-            poster = row.select_one('div[data-film-slug]')
+            poster = row.select_one('div[data-item-slug]')
+            print("Printing poster:", poster)
             if not poster:
+                print("No poster found, skipping row.")
                 continue
 
-            slug = slugify(poster['data-film-slug'])
+            slug = slugify(poster['data-item-slug'])
+            print(f"Extracted slug: {slug}")
             if slug not in target_slugs:
+                print(f"Slug not in target slugs, skipping.")
                 continue
 
             found_slugs.add(slug)
@@ -237,11 +241,11 @@ def did_user_watch_movie(username, target_slug, max_pages=1):
         print(f"Page {page}: Request and parsing took {page_end - page_start:.2f} seconds")
 
         for row in rows:
-            poster = row.select_one('div[data-film-slug]')
+            poster = row.select_one('div[data-item-slug]')
             if not poster:
                 continue
 
-            slug = slugify(poster['data-film-slug'])
+            slug = slugify(poster['data-item-slug'])
             print(slug, target_slug)
             if slug != target_slug:
                 continue
@@ -273,11 +277,11 @@ def get_user_diary(username, max_pages=1):
             break
 
         for row in rows:
-            poster = row.select_one('div[data-film-slug]')
+            poster = row.select_one('div[data-item-slug]')
             if not poster:
                 continue
 
-            slug = slugify(poster['data-film-slug'])
+            slug = slugify(poster['data-item-slug'])
             title_tag = row.select_one('h3.headline-3 a')
             title = title_tag.text.strip() if title_tag else 'Unknown Title'
             link = f"https://letterboxd.com{title_tag['href']}" if title_tag else ''
