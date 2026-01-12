@@ -284,6 +284,7 @@
             <a href="{{ url_for('index') }}" class="nav-item active">📊 Stats</a>
             <a href="{{ url_for('watchlist') }}" class="nav-item">🎬 Watchlist</a>
             <a href="{{ url_for('meetings') }}" class="nav-item">📅 Meetings</a>
+            <a href="{{ url_for('leaderboard') }}" class="nav-item">🏆 Leaderboard</a>
         </div>
     </nav>
     <div style="text-align: center; margin-bottom: 30px;">
@@ -301,7 +302,7 @@
                         style="text-decoration: none; color: inherit; display: block;">
                         <div>
                             <strong>{{ user.username }}</strong>
-                            {{ user.watched }} watched<br>
+                            {{ user.watched }} watched ({{ user.percentage }}%)<br>
                             Avg rating: <span class="highlight">{{ user.avg_rating }}</span><br>
                             {{ user.reviews }} reviews<br>
                             Avg words: <span class="highlight">{{ user.avg_words }}</span><br>
