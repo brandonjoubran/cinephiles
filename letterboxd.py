@@ -1024,6 +1024,42 @@ app = Flask(__name__)
 
 load_dotenv()
 
+# from playwright.sync_api import sync_playwright
+
+# def get_tmdb_id(slug):
+#     with sync_playwright() as p:
+#         browser = p.chromium.launch(
+#         headless=True,
+#         args=[
+#             "--no-sandbox",
+#             "--disable-setuid-sandbox",
+#             "--disable-dev-shm-usage",
+#             "--disable-blink-features=AutomationControlled"
+#         ]
+#     )
+
+#         context = browser.new_context(
+#             user_agent=(
+#                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+#                 "AppleWebKit/537.36 (KHTML, like Gecko) "
+#                 "Chrome/120.0.0.0 Safari/537.36"
+#             )
+#         )
+
+#         context.add_init_script("""
+#         Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+#         """)
+
+#         page = context.new_page()
+#         page.goto(f"https://letterboxd.com/film/{slug}/", wait_until="domcontentloaded")
+
+#         tmdb_id = page.evaluate(
+#             "document.body.getAttribute('data-tmdb-id')"
+#         )
+
+#         browser.close()
+#         return tmdb_id
+
 def parse_time(t):
     try:
         return datetime.strptime(t, "%H:%M")
@@ -1289,6 +1325,7 @@ def watchlist():
 
 @app.route('/add-movie', methods=['POST'])
 def add_movie():
+    print("Adding movie")
     url = request.form.get('url')
     added_by = request.form.get('username')
 
@@ -1303,14 +1340,17 @@ def add_movie():
     slug = match.group(1)
 
     try:
+        print(f"Making request to {full_url}")
         resp = requests.get(full_url)
         soup = BeautifulSoup(resp.text, 'html.parser')
 
         # Extract the data-tmdb-id attribute from the <body> tag
         body_tag = soup.find('body')
+        print(soup.select('body.film'))
         tmdb_id = body_tag['data-tmdb-id'] if body_tag and 'data-tmdb-id' in body_tag.attrs else None
-        print(tmdb_id)
-        poster_url = get_poster(tmdb_id)
+        # tmdb_id = get_tmdb_id(slug)
+        print(f"TMDB ID: {tmdb_id}")
+        poster_url = get_poster(tmdb_id) if tmdb_id else None
 
         # Extract the movie title
         title_tag = soup.find('meta', property='og:title')
