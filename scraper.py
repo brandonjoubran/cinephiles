@@ -2,7 +2,7 @@ import json
 import time
 from bs4 import BeautifulSoup
 import requests
-from utils import slugify, extract_full_date, parse_rating, resolve_letterboxd_url
+from utils import slugify, extract_full_date, parse_rating, resolve_letterboxd_url, fetch_page
 import lxml
 
 def user_watched_last_film(username, movie_slug):
@@ -19,7 +19,7 @@ def user_watched_last_film(username, movie_slug):
     }
     try:
         req_start = time.time()
-        resp = requests.get(url, headers=headers)
+        resp = fetch_page(url, headers=headers)
         req_end = time.time()
         print(f"    ⏱️ Request to {url} took {req_end - req_start:.2f} seconds")
         if resp.status_code != 200:
@@ -52,7 +52,7 @@ def parse_letterboxd_movie(link):
         link = resolve_letterboxd_url(link)
 
     # Step 2: Fetch and parse the movie page
-    resp = requests.get(link)
+    resp = fetch_page(link)
     soup = BeautifulSoup(resp.text, 'html.parser')
 
     json_ld = soup.find("script", type="application/ld+json")
@@ -78,7 +78,7 @@ def count_review_words(url, headers):
     try:
         time.sleep(0.5)
         request_start = time.time()
-        resp = requests.get(url, headers=headers)
+        resp = fetch_page(url, headers=headers)
         request_end = time.time()
         print(f"    Request to {url} took {request_end - request_start:.2f} seconds")
         if resp.status_code != 200:
@@ -122,7 +122,7 @@ def get_all_user_logs(username, target_slugs, review_word_counts_cache=None, max
         page_start = time.time()
         url = f'https://letterboxd.com/{username}/films/diary/page/{page}/'
         try:
-            resp = requests.get(url, headers=headers)
+            resp = fetch_page(url, headers=headers)
             print(f"Page {page}: Request to {url} response {resp}")
         except requests.exceptions.RequestException as e:
             print(f"Page {page}: Request failed due to exception: {e}")
@@ -225,7 +225,7 @@ def did_user_watch_movie(username, target_slug, max_pages=1):
         page_start = time.time()
 
         url = f'https://letterboxd.com/{username}/films/diary/page/{page}/'
-        resp = requests.get(url)
+        resp = fetch_page(url)
         if resp.status_code != 200:
             print(f"Page {page}: Request failed with status code {resp.status_code}")
             break
@@ -265,7 +265,7 @@ def get_user_diary(username, max_pages=1):
 
     for page in range(1, max_pages + 1):
         url = f'https://letterboxd.com/{username}/films/diary/page/{page}/'
-        resp = requests.get(url)
+        resp = fetch_page(url)
         if resp.status_code != 200:
             print(f"Page {page}: Request failed with status code {resp.status_code}")
             break

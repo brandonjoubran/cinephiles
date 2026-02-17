@@ -1013,10 +1013,17 @@ from dotenv import load_dotenv
 import time
 import random
 from collections import defaultdict
-from cache import load_cache, save_cache, CACHE_FILE, flush_cache, load_all_stats_caches_in_memory
+from cache import load_cache, save_cache, CACHE_FILE, flush_cache, load_all_stats_caches_in_memory, save_stats_cache
 from scraper import user_watched_last_film
-from scraper_optimized import get_all_user_logs, user_watched_last_film_optimized, get_user_number_of_movies_watched
-from utils import expand_short_url
+from scraper_optimized import (
+    get_all_user_logs,
+    get_all_user_logs_from_film_pages,
+    get_user_number_of_movies_watched,
+    warm_film_data_for_new_slug,
+)
+from persistence import load_all_users_films, save_user_films
+from film_log_sheet import load_all_from_film_log_sheet
+from utils import expand_short_url, fetch_page
 from utils_optimized import get_rotw_counts, build_stats, movies_after_date
 from db import get_watchlist_sheet, get_users_sheet, get_nominations_sheet, get_selected_sheet, get_meetings_sheet, get_selected_records, get_meetings_records
 
@@ -1129,10 +1136,17 @@ def index():
     logs_by_user = {}
     rotw_counts = {}
     
-    # 🔧 Load the cache if it exists
-    cache = load_all_stats_caches_in_memory()
-    print(cache)
-    print(cache is not None)
+    # Load cache: persistence (JSON) -> FilmLog sheet -> /tmp caches.
+    cache = load_all_users_films()
+    cache_from_sheet = False
+    if not cache:
+        cache = load_all_from_film_log_sheet()
+        cache_from_sheet = bool(cache)
+        if cache_from_sheet:
+            print("[FilmLog] Hydrated from sheet (persistence was empty)")
+    if not cache:
+        cache = load_all_stats_caches_in_memory()
+    print(f"Cache loaded: {len(cache)} users")
 
     user_sheet = get_users_sheet()
     usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
@@ -1146,22 +1160,21 @@ def index():
     print(f"Selected dates: {selected_dates}")
     movies_after_date_object = movies_after_date(dict(zip(usernames, users_joins)), dict(zip(selected_slugs, selected_dates)))
 
-    if cache is not None:
-        print('here')
-        # usernames = ['bjoubs', 'KingKrab', 'GeoMoD', 'mskills43', 'raymondeezy']
-        for username in usernames:
-            if username in cache and cache[username] != {} and 'films' in cache.get(username, {}) and cache[username]['films'] != {}:
-                print(f"Using cached films for {username}")
-                logs_by_user[username] = cache[username]['films']
-            else:
-                print(f"♻️ Recomputing films cache for {username}")
-                logs_by_user[username] = get_all_user_logs(username, selected_slugs)[username]['films']
-            if username in cache and cache[username] != {} and 'stats' in cache.get(username, {}) and cache[username]['stats'] != {}:
-                print(f"Using cached stats for {username}")
-                rotw_counts[username] = cache[username]
-            else:
-                print(f"♻️ Recomputing stats cache for {username}")
-                rotw_counts = get_rotw_counts(selected_records)
+    # No scraping on page load: use only cache/persistence/FilmLog. Scraping happens only when a movie is marked complete (warm_film_data_for_new_slug).
+    rotw_counts = get_rotw_counts(selected_records)
+    for username in usernames:
+        if username in cache and cache[username] and cache[username].get("films"):
+            logs_by_user[username] = cache[username]["films"]
+        else:
+            logs_by_user[username] = {}
+
+    # If we hydrated from FilmLog, write back to persistence and /tmp so next load is local.
+    if cache_from_sheet and cache:
+        for username in cache:
+            if cache[username].get("films"):
+                save_user_films(username, {username: cache[username]})
+                save_stats_cache(username, {username: cache[username]})
+        print("[FilmLog] Wrote hydrated data to persistence and cache")
 
     end_time = time.time()
     print(f"✅ Total index() execution time: {end_time - start_time:.2f} seconds")
@@ -1211,7 +1224,7 @@ def parse_movie():
         return jsonify({"error": "Invalid Letterboxd link"}), 400
 
     slug = match.group(1)
-    resp = requests.get(full_url)
+    resp = fetch_page(full_url)
     soup = BeautifulSoup(resp.text, 'html.parser')
     title_tag = soup.find('meta', property='og:title')
     title = title_tag['content'] if title_tag else slug.replace('-', ' ').title()
@@ -1341,7 +1354,7 @@ def add_movie():
 
     try:
         print(f"Making request to {full_url}")
-        resp = requests.get(full_url)
+        resp = fetch_page(full_url)
         soup = BeautifulSoup(resp.text, 'html.parser')
 
         # Extract the data-tmdb-id attribute from the <body> tag
@@ -1499,6 +1512,7 @@ def mark_watched(movie_slug):
     print("Review of the Week Users: ", review_of_week_users)
     review_of_week_str = ", ".join(review_of_week_users)  # Convert the list to a comma-separated string
     # return
+    added_to_selected = False
     # Check if the movie is selected
     if str(movie.get("IS_SELECTED", "")).upper() == "TRUE":
         # Step 1: Push all IS_NOMINATED movies to the Nominated table
@@ -1571,6 +1585,7 @@ def mark_watched(movie_slug):
             "WATCHED_DATE": datetime.now().strftime('%m/%d/%Y'),
             "ROTW": review_of_week_str  # Add the ROTW field to the cache
         })
+        added_to_selected = True
 
         # Reset IS_SELECTED in the watchlist table
         watchlist_sheet.update_cell(row_index, watchlist_headers.index("IS_SELECTED") + 1, "")
@@ -1596,6 +1611,12 @@ def mark_watched(movie_slug):
     cache["nominated_records"] = nominated_records
     cache["selected_records"] = selected_records
     save_cache(cache)
+
+    # Step 5: Warm cache and persistence for the new film (one Letterboxd request per user)
+    if added_to_selected:
+        user_sheet = get_users_sheet()
+        usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
+        warm_film_data_for_new_slug(usernames, movie_slug)
 
     return redirect(url_for('watchlist'))
 
@@ -1874,61 +1895,35 @@ def clear_cache():
 def generate_voters():
     """
     Endpoint to generate 3 random voters from the usernames table.
-    Only considers users who have watched the latest movie (checked live via tag page).
+    Only considers users who have watched the latest movie. Uses cache/persistence only (no scraping).
     """
-    print("🔄 Starting generate_voters endpoint")
+    # Same cache as index: persistence -> FilmLog -> /tmp
+    cache = load_all_users_films()
+    if not cache:
+        cache = load_all_from_film_log_sheet()
+    if not cache:
+        cache = load_all_stats_caches_in_memory()
 
-    # Load the cache if it exists
-    cache = load_cache() if os.path.exists(CACHE_FILE) else {}
-    print(f"📦 Cache loaded: {bool(cache)}")
-
-    # Get the Selected records from the cache or fetch them
-    selected_records = cache.get("selected_records")
+    selected_records = get_selected_records()
     if not selected_records:
-        print("♻️ Fetching Selected records and updating cache")
-        selected_sheet = get_selected_sheet()
-        selected_records = selected_sheet.get_all_records()
-        cache["selected_records"] = selected_records
-        save_cache(cache)
-    else:
-        print(f"✅ Using {len(selected_records)} selected records from cache")
-
-    if not selected_records:
-        print("❌ No movies found in the Selected table.")
         return jsonify({"error": "No movies found in the Selected table."}), 400
 
-    # Get the latest movie (last entry in the Selected table)
     latest_movie = selected_records[-1]
     latest_movie_slug = latest_movie.get("SLUG")
-    print(f"🎬 Latest movie slug: {latest_movie_slug}")
-
     if not latest_movie_slug:
-        print("❌ Latest movie does not have a valid slug.")
         return jsonify({"error": "Latest movie does not have a valid slug."}), 400
 
-    # Get all usernames
     user_sheet = get_users_sheet()
     usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
-    print(f"👥 Usernames loaded: {usernames}")
 
-    # Check each user using the new function
-    eligible_users = []
-    for username in usernames:
-        print(f"🔍 Checking if {username} watched {latest_movie_slug}...")
-        watched = user_watched_last_film_optimized(username, latest_movie_slug)
-        print(f"    {username} watched: {watched}")
-        if watched:
-            eligible_users.append(username)
-
-    print(f"✅ Eligible users: {eligible_users}")
+    # Eligible = have latest movie in cache/persistence (no live scrape)
+    eligible_users = [
+        username for username in usernames
+        if latest_movie_slug in cache.get(username, {}).get("films", {})
+    ]
 
     sample_size = min(3, len(eligible_users))
-    # if len(eligible_users) < 3:
-    #     print("❌ Not enough eligible users to generate voters.")
-    #     return jsonify({"error": "Not enough eligible users to generate voters."}), 400
-
     random_voters = random.sample(eligible_users, sample_size)
-    print(f"🎲 Selected voters: {random_voters}")
     return jsonify({"voters": random_voters}), 200
 
 @app.route('/meetings')
@@ -2038,5 +2033,6 @@ def leaderboard():
     return render_template("leaderboard.html", leaderboard=leaderboard_data)
 
 if __name__ == '__main__':
+    # To watch Playwright in a visible browser: PLAYWRIGHT_HEADLESS=0 python letterboxd.py
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)

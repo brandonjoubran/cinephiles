@@ -1,0 +1,10 @@
+# Render – set these in Dashboard (Build & Start) if not using a blueprint.
+# Build Command:   pip install -r requirements.txt && playwright install chromium
+# Start Command:   gunicorn letterboxd:app -b 0.0.0.0:$PORT --timeout 600
+#                 (--timeout 600: index can refresh 27 film pages; some take ~45s each)
+#
+# Local run (required: --timeout so index can finish when refreshing film pages):
+#   gunicorn letterboxd:app -b 0.0.0.0:8080 --timeout 600
+#
+# If you prefer to install on app startup instead of build, use:
+# Start Command:   pip install -r requirements.txt && playwright install chromium && gunicorn letterboxd:app -b 0.0.0.0:$PORT --timeout 600

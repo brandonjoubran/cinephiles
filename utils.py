@@ -1,16 +1,322 @@
 from collections import defaultdict
+import os
 import re
 import statistics
 import requests
+import time
+import threading
+from urllib.parse import urlparse
+
+
+def _playwright_headless():
+    """Use PLAYWRIGHT_HEADLESS=0 or false to run with a visible browser (watch locally)."""
+    v = (os.environ.get("PLAYWRIGHT_HEADLESS") or "true").strip().lower()
+    return v not in ("0", "false", "no", "off")
+
+
+def _chromium_launch_args():
+    """Args for Chromium. When headless=False we skip server-style flags so the window can show."""
+    if _playwright_headless():
+        return [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--single-process",
+        ]
+    return []  # visible browser: use defaults so it can attach to your display
+
+# Optional shared Playwright browser per thread (e.g. one per user scrape to avoid 30+ launches).
+_shared_browser_tls = threading.local()
+
+try:
+    import cloudscraper
+except ImportError:
+    cloudscraper = None
+
+DEFAULT_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/avif,image/webp,*/*;q=0.8"
+    ),
+    "Accept-Language": "en-US,en;q=0.9",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+}
+
+
+def _is_challenge_page(response):
+    if not response:
+        return False
+
+    text = (response.text or "").lower()
+    server_header = (response.headers.get("server", "") or "").lower()
+    status = response.status_code
+
+    challenge_markers = [
+        "just a moment",
+        "attention required",
+        "cf-browser-verification",
+        "cf_chl",
+        "cf-chl",
+        "/cdn-cgi/challenge-platform",
+        "enable javascript and cookies",
+    ]
+
+    has_marker = any(marker in text for marker in challenge_markers)
+    cloudflare_header = "cloudflare" in server_header
+
+    if status in (403, 429, 503) and (has_marker or cloudflare_header):
+        return True
+    return has_marker and cloudflare_header
+
+
+# Run before any page loads to reduce Cloudflare/security-check triggers.
+_PLAYWRIGHT_STEALTH_INIT_SCRIPT = """
+(function() {
+  Object.defineProperty(navigator, 'webdriver', { get: function() { return undefined; }, configurable: true });
+  if (window.chrome === undefined) window.chrome = { runtime: {} };
+})();
+"""
+
+
+def _apply_playwright_context_options(context, user_agent):
+    """Make the browser look like a real user to reduce security checks."""
+    context.add_init_script(_PLAYWRIGHT_STEALTH_INIT_SCRIPT)
+    # Already set via new_context: user_agent, viewport. Add locale and timezone.
+    try:
+        context.set_extra_http_headers({"Accept-Language": "en-US,en;q=0.9"})
+    except Exception:
+        pass
+
+
+def _playwright_fetch(url, timeout, user_agent, extra_wait_after_load_ms=6000):
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("[fetch] Playwright not installed, skipping browser request")
+        return None
+
+    def _run_page(context):
+        page = context.new_page()
+        try:
+            # Wait for load so Cloudflare verification can run; use generous timeout.
+            page.goto(url, wait_until="load", timeout=timeout * 1000)
+            # Give Cloudflare/JS time to finish before we read (avoid capturing "Just a moment").
+            page.wait_for_timeout(extra_wait_after_load_ms)
+            # Wait for real content so we don't capture an incomplete/challenge page.
+            if "/tag/" in url and "/films" in url:
+                try:
+                    page.wait_for_selector("div[data-item-slug]", timeout=12000)
+                except Exception:
+                    pass
+            elif "/film/" in url:
+                # Film page: wait for real Letterboxd content (not Cloudflare interstitial).
+                try:
+                    page.wait_for_selector("h1.headline-1", timeout=15000)
+                except Exception:
+                    pass
+            html = page.content()
+            return page.url, html
+        finally:
+            page.close()
+
+    print(f"[fetch] Playwright request: {url}")
+    try:
+        ctx = getattr(_shared_browser_tls, "context", None)
+        if ctx is not None:
+            final_url, html = _run_page(ctx)
+            print(f"[fetch] Playwright got page (200) for {final_url} [shared browser]")
+        else:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(
+                    headless=_playwright_headless(),
+                    args=_chromium_launch_args(),
+                )
+                context = browser.new_context(
+                    user_agent=user_agent,
+                    viewport={"width": 1280, "height": 720},
+                    locale="en-US",
+                    timezone_id="America/New_York",
+                )
+                _apply_playwright_context_options(context, user_agent)
+                final_url, html = _run_page(context)
+                context.close()
+                browser.close()
+            print(f"[fetch] Playwright got page (200) for {final_url}")
+    except Exception as e:
+        print(f"[fetch] Playwright request failed: {e}")
+        return None
+
+    synthetic = requests.Response()
+    synthetic.url = final_url
+    synthetic._content = html.encode("utf-8")
+    synthetic.encoding = "utf-8"
+    synthetic.headers = {"server": "playwright"}
+    synthetic.request = requests.Request("GET", final_url).prepare()
+    # If we still have challenge/interstitial content, mark as 403 so caller can retry or fallback.
+    text_lower = (html or "").lower()
+    if any(m in text_lower for m in ("just a moment", "attention required", "cf-browser-verification")):
+        synthetic.status_code = 403
+    else:
+        synthetic.status_code = 200
+    return synthetic
+
+
+def shared_playwright_browser(user_agent=None, timeout=45):
+    """
+    Context manager: use one Playwright browser for all fetch_page() calls inside the block.
+    Use this in get_all_user_logs so we don't launch 30+ browsers per user (avoids worker timeout).
+    """
+    from playwright.sync_api import sync_playwright
+
+    user_agent = user_agent or DEFAULT_BROWSER_HEADERS["User-Agent"]
+
+    class _Ctx:
+        def __enter__(self):
+            self._pw = sync_playwright().start()
+            self._browser = self._pw.chromium.launch(
+                headless=_playwright_headless(),
+                args=_chromium_launch_args(),
+            )
+            self._context = self._browser.new_context(
+                user_agent=user_agent,
+                viewport={"width": 1280, "height": 720},
+                locale="en-US",
+                timezone_id="America/New_York",
+            )
+            _apply_playwright_context_options(self._context, user_agent)
+            _shared_browser_tls.playwright = self._pw
+            _shared_browser_tls.browser = self._browser
+            _shared_browser_tls.context = self._context
+            if not _playwright_headless():
+                print("[fetch] Shared Playwright browser started (visible). If no window appears, run with: PLAYWRIGHT_HEADLESS=0 python letterboxd.py")
+            else:
+                print("[fetch] Shared Playwright browser started for this scrape (headless)")
+            return self
+
+        def __exit__(self, *args):
+            try:
+                _shared_browser_tls.context.close()
+                _shared_browser_tls.browser.close()
+                _shared_browser_tls.playwright.stop()
+            except Exception as e:
+                print(f"[fetch] Error closing shared browser: {e}")
+            finally:
+                for key in ("context", "browser", "playwright"):
+                    if hasattr(_shared_browser_tls, key):
+                        delattr(_shared_browser_tls, key)
+            print("[fetch] Shared Playwright browser closed")
+
+    return _Ctx()
+
+
+def _is_letterboxd_url(url):
+    """True if this URL is for Letterboxd (we should try Playwright first to avoid 403).
+    Includes letterboxd.com and short/mobile links like boxd.it.
+    """
+    host = (urlparse(url).netloc or "").lower().strip()
+    if not host:
+        return False
+    return (
+        host in ("letterboxd.com", "www.letterboxd.com")
+        or host == "boxd.it"
+        or host.endswith(".letterboxd.com")
+        or host.endswith(".boxd.it")
+    )
+
+
+def fetch_page(url, headers=None, timeout=45, allow_redirects=True, method="get"):
+    merged_headers = dict(DEFAULT_BROWSER_HEADERS)
+    if headers:
+        merged_headers.update(headers)
+
+    request_method = method.lower()
+    user_agent = merged_headers.get("User-Agent", DEFAULT_BROWSER_HEADERS["User-Agent"])
+
+    # For Letterboxd GET requests, try Playwright first so we don't hit Cloudflare 403.
+    if request_method == "get" and _is_letterboxd_url(url):
+        print(f"[fetch] Letterboxd URL: trying Playwright first for {url}")
+        pw_response = _playwright_fetch(url=url, timeout=timeout, user_agent=user_agent)
+        if pw_response is not None and not _is_challenge_page(pw_response):
+            return pw_response
+        # Sometimes the security check needs more time; retry once with longer wait.
+        if pw_response is not None and _is_challenge_page(pw_response):
+            print(f"[fetch] Playwright got challenge page, retrying with longer wait for {url}")
+            time.sleep(2)
+            pw_response = _playwright_fetch(
+                url=url, timeout=timeout, user_agent=user_agent, extra_wait_after_load_ms=12000
+            )
+            if pw_response is not None and not _is_challenge_page(pw_response):
+                return pw_response
+        print(f"[fetch] Playwright didn't succeed, falling back to requests for {url}")
+
+    print(f"[fetch] HTTP request: {request_method.upper()} {url}")
+    response = requests.request(
+        request_method,
+        url,
+        headers=merged_headers,
+        timeout=timeout,
+        allow_redirects=allow_redirects,
+    )
+    print(f"[fetch] HTTP response: {response.status_code} for {url}")
+
+    if not _is_challenge_page(response):
+        return response
+
+    print(f"[fetch] Got challenge/block (e.g. Cloudflare), trying cloudscraper for {url}")
+    if cloudscraper is not None:
+        for attempt in range(2):
+            try:
+                try:
+                    scraper = cloudscraper.create_scraper(browser={"browser": "chrome", "mobile": False})
+                except (KeyError, TypeError):
+                    scraper = cloudscraper.create_scraper()
+                cf_response = scraper.request(
+                    request_method,
+                    url,
+                    headers=merged_headers,
+                    timeout=timeout,
+                    allow_redirects=allow_redirects,
+                )
+                if cf_response.status_code < 500 and not _is_challenge_page(cf_response):
+                    return cf_response
+                response = cf_response
+                time.sleep(0.5 * (attempt + 1))
+            except Exception as e:
+                print(f"[fetch] Cloudscraper attempt {attempt + 1} failed: {e}")
+                time.sleep(0.5 * (attempt + 1))
+
+    if request_method == "get":
+        print(f"[fetch] Trying Playwright as fallback for {url}")
+        # Use shorter timeout on fallback so we don't burn another 45s if first attempt already timed out
+        fallback_timeout = min(timeout, 25)
+        pw_response = _playwright_fetch(url=url, timeout=fallback_timeout, user_agent=user_agent)
+        if pw_response is not None and not _is_challenge_page(pw_response):
+            return pw_response
+
+    # Cloudflare blocked us and fallbacks didn't succeed
+    import sys
+    print(
+        "Letterboxd is protected by Cloudflare; simple requests were blocked. "
+        "Install a browser for Playwright so it can bypass the check: run 'playwright install chromium'",
+        file=sys.stderr,
+    )
+    return response
 
 def expand_short_url(url):
     try:
-        return requests.head(url, allow_redirects=True).url
+        return fetch_page(url, allow_redirects=True, method="head").url
     except:
         return url
 
 def resolve_letterboxd_url(short_url):
-    response = requests.get(short_url, allow_redirects=True)
+    response = fetch_page(short_url, allow_redirects=True)
     return response.url  # final resolved URL like https://letterboxd.com/film/heat-1995/
 
 def slugify(title):

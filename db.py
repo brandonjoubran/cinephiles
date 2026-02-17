@@ -97,6 +97,20 @@ def get_meetings_sheet():
     # Access the specific sheet (tab) called "Users"
     return spreadsheet.worksheet("Meetings")
 
+
+def get_film_log_sheet():
+    """FilmLog sheet: one row per (USERNAME, SLUG) for watched films. See docs/FILM_LOG_SHEET_SCHEMA.md."""
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+        "onlycinephiles-b6b986d3cb57.json", scope
+    )
+    client = gspread.authorize(creds)
+    spreadsheet = client.open("OnlyCinephilesDB")
+    return spreadsheet.worksheet("FilmLog")
+
 def get_meetings_records():
     cache = load_cache() if os.path.exists(CACHE_FILE) else {}
     meetings_records = cache.get("meetings_records")

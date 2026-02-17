@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Letterboxd Stats</title>
+</head>
+<body>
+    <h1>Letterboxd Stats</h1>
+    <h2>Summary</h2>
+    <ul>
+        {% for user in summary %}
+        <li>{{ user.username }}: {{ user.watched }} movies watched, avg rating {{ user.avg_rating }}, {{ user.reviews }} reviews, avg words {{ user.avg_words }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Most Divisive Movie</h2>
+    <p>{{ most_divisive[0] }}</p>
+
+    <h2>Most Liked Movie</h2>
+    <p>{{ most_liked[0] }} ({{ most_liked[1]|round(2) }}⭐)</p>
+
+    <h2>Least Liked Movie</h2>
+    <p>{{ least_liked[0] }} ({{ least_liked[1]|round(2) }}⭐)</p>
+
+    <h2>Longest Review</h2>
+    <p>{{ longest_review.words }} words by {{ longest_review.user }} on "{{ longest_review.title }}" → <a href="{{ longest_review.url }}">Link</a></p>
+
+    <h2>Shortest Review</h2>
+    <p>{{ shortest_review.words }} words by {{ shortest_review.user }} on "{{ shortest_review.title }}" → <a href="{{ shortest_review.url }}">Link</a></p>
+</body>
+</html>

@@ -5,15 +5,16 @@ import requests
 from db import *
 from cache import *
 from datetime import datetime
+from utils import fetch_page
 
 def expand_short_url(url):
     try:
-        return requests.head(url, allow_redirects=True).url
+        return fetch_page(url, allow_redirects=True, method="head").url
     except:
         return url
 
 def resolve_letterboxd_url(short_url):
-    response = requests.get(short_url, allow_redirects=True)
+    response = fetch_page(short_url, allow_redirects=True)
     return response.url  # final resolved URL like https://letterboxd.com/film/heat-1995/
 
 def slugify(title):
@@ -51,9 +52,18 @@ def movies_after_date(people, movies):
 
         result[person] = count
 
-    print(f"Movies after date: {result}")
+    # print(f"Movies after date: {result}")
 
     return result
+
+def _to_float(x):
+    if x is None:
+        return None
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return None
+
 
 def build_stats(logs_by_user, selected_records, rotw_counts, movies_after_date):
     stats = defaultdict(lambda: {'watched': 0, 'ratings': [], 'reviews': 0, 'words': [], 'rotw_count': 0})
@@ -65,32 +75,30 @@ def build_stats(logs_by_user, selected_records, rotw_counts, movies_after_date):
     # return
     # Process logs by user
     for username, logs in logs_by_user.items():
-        print(f"Processing logs for user: {username}")
-        print(f"logs: {logs}")
-        print(f"len logs: {len(logs)}")
-        # print(f"user_film_logs: {user_film_logs}")
         for key, user_log_data in logs.items():
-            print(user_log_data)
-            print(f"dfd{key}: {user_log_data}")
-            print(user_log_data)
-            # return
             title = user_log_data['title']
             stats[username]['watched'] += 1
-            if user_log_data.get('rating') is not None:
-                stats[username]['ratings'].append(user_log_data['rating'])
-                movie_ratings[title].append(user_log_data['rating'])
+            rating = _to_float(user_log_data.get('rating'))
+            if rating is not None:
+                stats[username]['ratings'].append(rating)
+                movie_ratings[title].append(rating)
 
             if user_log_data.get('has_review'):
                 stats[username]['reviews'] += 1
-                word_count = user_log_data.get('word_count', 0)
+                raw_wc = user_log_data.get('word_count', 0)
+                try:
+                    word_count = int(float(raw_wc)) if raw_wc is not None else 0
+                except (TypeError, ValueError):
+                    word_count = 0
                 stats[username]['words'].append(word_count)
 
+                log_url = user_log_data.get('review_link') or user_log_data.get('url') or ''
                 if word_count > longest['words']:
                     longest = {
                         'user': username,
                         'words': word_count,
                         'title': title,
-                        'url': user_log_data['review_link']
+                        'url': log_url
                     }
 
                 if 0 < word_count < shortest['words']:
@@ -98,18 +106,13 @@ def build_stats(logs_by_user, selected_records, rotw_counts, movies_after_date):
                         'user': username,
                         'words': word_count,
                         'title': title,
-                        'url': user_log_data['review_link']
+                        'url': log_url
                     }
         # Add ROTW counts from the cache
-        # for username, count in rotw_counts.items():
-        #     stats[username]['rotw_count'] = count
-        print(f"ROTW counts: {rotw_counts} {username} {rotw_counts.get(username, 0)}")
         if username in rotw_counts:
-            print(rotw_counts[username])
             stats[username]['rotw_count'] = rotw_counts.get(username, {}).get('stats', {}).get('rotw_count', 0)
         else:
             stats[username]['rotw_count'] = 0
-        print(stats[username]['rotw_count'])
 
     # Summary stats per user
     summary = []
@@ -125,18 +128,17 @@ def build_stats(logs_by_user, selected_records, rotw_counts, movies_after_date):
             'rotw_count': user_stats['rotw_count']  # Add ROTW count to the summary
         })
 
-    # Movie stats
-    divisive = max(
-        movie_ratings.items(),
-        key=lambda x: statistics.stdev(x[1]) if len(x[1]) > 1 else 0,
-        default=("No movies", [])
-    )
-    divisive_std = round(statistics.stdev(divisive[1]), 2) if len(divisive[1]) > 1 else 0
+    # Movie stats (coerce to float in case of string ratings from sheet/cache)
+    def _div_score(item):
+        vals = [_to_float(r) for r in item[1] if _to_float(r) is not None]
+        return statistics.stdev(vals) if len(vals) > 1 else 0
+    divisive = max(movie_ratings.items(), key=_div_score, default=("No movies", []))
+    div_vals = [_to_float(r) for r in divisive[1] if _to_float(r) is not None]
+    divisive_std = round(statistics.stdev(div_vals), 2) if len(div_vals) > 1 else 0
 
     averages = {}
     for movie, ratings in movie_ratings.items():
-        print(f"Movie: {movie}, Ratings: {ratings}")
-        valid = [r for r in ratings if r is not None]
+        valid = [_to_float(r) for r in ratings if _to_float(r) is not None]
         if valid:
             averages[movie] = sum(valid) / len(valid)
 
@@ -199,12 +201,10 @@ def get_rotw_counts(selected_records):
     return rotw_counts
 
 def cache_rotw_counts(rotw_counts):
-    print(f"Caching ROTW counts: {rotw_counts}")
     for username, data in rotw_counts.items():
         user_cache = load_stats_cache(username)
         user_cache.setdefault(username, {}).setdefault("stats", {})
         user_cache[username]['stats'] = data.get('stats', {})
-        print(f"Saving ROTW count for {username}: {user_cache[username]['stats']}")
         save_stats_cache(username, user_cache)
 
 # selected_sheet = get_selected_sheet()
@@ -212,4 +212,3 @@ def cache_rotw_counts(rotw_counts):
 # selected_slugs = [row["SLUG"] for row in selected_records if "SLUG" in row]
 
 # print(get_rotw_counts(selected_records))
-

@@ -1,18 +1,45 @@
+"""
+All caching (and persistence) lives in /tmp; nothing in data/.
+
+Two cache systems (both under CACHE_PATH, default /tmp):
+
+1) Single-file cache (CACHE_FILE)
+   - Path: CACHE_PATH/stats_cache.json
+   - Used by: letterboxd.py, db.py
+   - Stores: watchlist_records, selected_records, nominated_records, meetings_records
+
+2) Per-user stats cache (stats_{username}_cache.json)
+   - Path: CACHE_PATH/stats_{username}_cache.json
+   - Used by: scraper_optimized.py, utils_optimized.py, letterboxd.py
+   - Stores: { username: { "films": {...}, "stats": {...} } }  (Letterboxd film data)
+
+Persistence (persistence.py) also defaults to /tmp (stats_{username}.json).
+Durable source: FilmLog sheet. Index loads: /tmp (persistence + cache) -> FilmLog -> then /tmp.
+"""
 import os, time, json, glob
 
-CACHE_FILE = "/tmp/stats_cache.json"
 CACHE_TTL = 60 * 60 * 12  # 12 hours
-CACHE_PATH = "/tmp/"
+CACHE_PATH = os.environ.get("CINEPHILES_CACHE_PATH", "/tmp/").rstrip("/")
+CACHE_FILE = os.path.join(CACHE_PATH, "stats_cache.json")
 
 def is_cache_valid():
     return os.path.exists(CACHE_FILE) and (time.time() - os.path.getmtime(CACHE_FILE) < CACHE_TTL)
 
 def load_cache():
-    with open(CACHE_FILE, 'r') as f:
-        return json.load(f)
+    if not os.path.exists(CACHE_FILE):
+        return {}
+    try:
+        with open(CACHE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
 
 def save_cache(data):
-    with open(CACHE_FILE, 'w') as f:
+    d = os.path.dirname(CACHE_FILE)
+    if d and not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
+    with open(CACHE_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
 def flush_cache():
@@ -27,35 +54,48 @@ def update_film_cache(username, film_data):
         cache[username]["films"][key] = value
     save_cache(cache)
 
+def _stats_cache_file(username):
+    return os.path.join(CACHE_PATH, f"stats_{username}_cache.json")
+
+
 def ensure_cache_file(username):
     """Create the cache file (and parent dir) if it doesn't exist, with an empty JSON object."""
-    CACHE_FILE = f"/tmp/stats_{username}_cache.json"
-    dirpath = os.path.dirname(CACHE_FILE) or "/"
+    path = _stats_cache_file(username)
+    dirpath = os.path.dirname(path) or "/"
     try:
         if dirpath and not os.path.exists(dirpath):
             os.makedirs(dirpath, exist_ok=True)
-        if not os.path.exists(CACHE_FILE):
-            with open(CACHE_FILE, "w", encoding="utf-8") as f:
+        if not os.path.exists(path):
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump({}, f)
     except Exception as e:
         print(f"⚠️ Failed to ensure cache file: {e}")
 
+
 def load_stats_cache(username):
-    ensure_cache_file(username)
-    CACHE_FILE = f"/tmp/stats_{username}_cache.json"
-    with open(CACHE_FILE, 'r') as f:
-        return json.load(f)
+    path = _stats_cache_file(username)
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
 
 def save_stats_cache(username, data):
-    CACHE_FILE = f"/tmp/stats_{username}_cache.json"
-    print(f"Saving stats cache for {username}: {data}")
-    with open(CACHE_FILE, 'w') as f:
+    path = _stats_cache_file(username)
+    d = os.path.dirname(path)
+    if d and not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f)
 
+
 def flush_stats_cache(username):
-    CACHE_FILE = f"/tmp/stats_{username}_cache.json"
-    if os.path.exists(CACHE_FILE):  # Check if the cache file exists
-        os.remove(CACHE_FILE) 
+    path = _stats_cache_file(username)
+    if os.path.exists(path):
+        os.remove(path) 
 
 def load_all_stats_caches_in_memory(dirpath=None, pattern="stats_*_cache.json"):
     """

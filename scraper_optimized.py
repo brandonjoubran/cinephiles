@@ -2,10 +2,12 @@ import json
 import time
 from bs4 import BeautifulSoup
 import requests
-from utils import slugify, extract_full_date, parse_rating, resolve_letterboxd_url
+from utils import slugify, extract_full_date, parse_rating, resolve_letterboxd_url, fetch_page, shared_playwright_browser
 import re
 from utils import parse_rating
 from cache import *
+from persistence import load_user_films, save_user_films, load_all_users_films
+from film_log_sheet import sync_user_films_to_sheet
 
 def check_user_has_tag(username, tag_name="onlycinephiles"):
     """
@@ -13,20 +15,22 @@ def check_user_has_tag(username, tag_name="onlycinephiles"):
     Returns True if tag exists and has movies, False otherwise.
     """
     url = f"https://letterboxd.com/{username}/tag/{tag_name}/films/"
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-    }
+    # Use default browser-like headers from utils; avoid old User-Agents (Cloudflare blocks them).
+
     try:
         time.sleep(0.3)
-        resp = requests.get(url, headers=headers)
+        resp = fetch_page(url)
+        print(f"Checking tag for {username}: {resp.status_code}")
+        if resp.status_code != 200:
+            print(f"Tag check failed for {username} at {url}")
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.text, "html.parser")
             film_divs = soup.select('div[data-item-slug]')
             return len(film_divs) > 0, soup
-        return False
+        return False, None
     except Exception as e:
         print(f"Error checking tag for {username}: {e}")
-        return False
+        return False, None
 
 def get_film_containers_from_tag_page(soup):
     return soup.select('li.griditem')
@@ -54,14 +58,62 @@ def get_review_element(rating_element):
     return review_element
 
 def get_review_link(review_element):
-    review_href = review_element.get('href')
-    print(f"   Found review: {review_href}")
+    review_href = (review_element.get('href') or '').lstrip('/')
+    print(f"   Found review: /{review_href}")
     review_link = f"https://letterboxd.com/{review_href}"
     return review_link
 
+
+def get_slug_to_film_url_from_tag_page(username, tag_name="onlycinephiles"):
+    """
+    Fetch the user's tag page and return (slug_to_url, ok).
+    slug_to_url: dict slug -> full film page URL.
+    ok: True if we got a valid response (200), False on 403/timeout/exception.
+    When ok is False we know the tag page failed; when ok is True but slug_to_url is {}
+    we got 200 but parsed 0 films (could be empty tag or page not ready - don't zero out).
+    """
+    url = f"https://letterboxd.com/{username}/tag/{tag_name}/films/"
+    slug_to_url = {}
+    try:
+        time.sleep(0.3)
+        resp = fetch_page(url)
+        if resp.status_code != 200:
+            return {}, False
+        soup = BeautifulSoup(resp.text, "html.parser")
+    except Exception as e:
+        print(f"   [tag page] Failed to fetch {url}: {e}")
+        return {}, False
+    for film_container in soup.select("li.griditem"):
+        try:
+            slug_el = film_container.select_one("div[data-item-slug]")
+            if not slug_el:
+                continue
+            slug = slug_el.attrs.get("data-item-slug")
+            if not slug:
+                continue
+            # Prefer the review link (points to the correct viewing, e.g. /username/film/slug/1/ for rewatch)
+            rating_el = film_container.select_one("p.poster-viewingdata")
+            review_anchor = rating_el.select_one("a.review-micro") if rating_el else None
+            if review_anchor and review_anchor.get("href"):
+                href = (review_anchor.get("href") or "").lstrip("/")
+                film_url = f"https://letterboxd.com/{href}" if href and not href.startswith("http") else href
+                slug_to_url[slug] = film_url.rstrip("/") + "/"
+            else:
+                # No review; use any link in the container to this film (poster link may be .../slug/1/)
+                film_anchor = film_container.select_one(f'a[href*="/film/{slug}"]')
+                if film_anchor and film_anchor.get("href"):
+                    href = (film_anchor.get("href") or "").lstrip("/")
+                    film_url = f"https://letterboxd.com/{href}" if href and not href.startswith("http") else href
+                    slug_to_url[slug] = film_url.rstrip("/") + "/"
+                else:
+                    slug_to_url[slug] = f"https://letterboxd.com/{username}/film/{slug}/"
+        except (IndexError, KeyError, TypeError):
+            continue
+    return slug_to_url, True
+
 def get_review_paragraphs(review_element, slug, headers, review_link):
     print(f"   Review link: {review_link}")
-    review_html = requests.get(review_link, headers=headers)
+    review_html = fetch_page(review_link, headers=headers)
     review_soup = BeautifulSoup(review_html.text, "html.parser")
     review_element = review_soup.select_one('div.js-review-body')
     review_paragraphs = review_element.select('p')
@@ -169,14 +221,10 @@ def scrape_from_tag_page(soup, username, target_slugs, tag_name="onlycinephiles"
             })
 
             cache.setdefault(username, {}).setdefault("films", {})[slug] = logs[-1]
-            # print(cache)
-            print(f"   logs[-1]: {logs[-1]}")
             new_data[slug] = logs[-1]
 
     elapsed = time.time() - start_time
     print(f"✅ Tag scraping completed in {elapsed:.2f}s - found {len(logs)} movies")
-    # print(cache[username])
-    print(new_data)
     save_stats_cache(username, cache)
     # update_film_cache(username, new_data)
     return cache
@@ -213,7 +261,7 @@ def scrape_from_diary(username, target_slugs, cache=None, max_pages=2):
         url = f'https://letterboxd.com/{username}/films/diary/page/{page}/'
         
         try:
-            resp = requests.get(url, headers=headers)
+            resp = fetch_page(url, headers=headers)
         except requests.exceptions.RequestException as e:
             print(f"   Page {page}: Request failed - {e}")
             break
@@ -316,26 +364,41 @@ def get_all_user_logs(username, target_slugs, cache=None, max_pages=2):
     print(f"\n{'='*60}")
     print(f"🎬 Fetching logs for {username}")
     print(f"{'='*60}")
-    
+
     cache = cache or {}
-    
-    # Check if user uses the tag
-    has_tag, soup = check_user_has_tag(username, "onlycinephiles")
-    if has_tag:
-        logs = scrape_from_tag_page(soup, username, target_slugs, "onlycinephiles", cache)
+
+    # One Playwright browser for this user's scrape to avoid 30+ launches and worker timeout.
+    with shared_playwright_browser():
+        # Check if user uses the tag
+        has_tag, soup = check_user_has_tag(username, "onlycinephiles")
+        if has_tag:
+            result = scrape_from_tag_page(soup, username, target_slugs, "onlycinephiles", cache)
+        else:
+            print(f"⚠️ User doesn't use 'onlycinephiles' tag, falling back to diary")
+            result = scrape_from_diary(username, target_slugs, cache, max_pages)
+
+    # Callers expect get_all_user_logs(username, ...)[username]['films'] – always return that shape.
+    # When scraping fails (e.g. 403) or returns empty, result may be {} or a list; normalize it.
+    if isinstance(result, list):
+        films = {log["slug"]: log for log in result} if result else {}
+        result = {username: {"films": films}}
+    elif not isinstance(result, dict) or username not in result:
+        result = {username: {"films": {}}}
     else:
-        print(f"⚠️ User doesn't use 'onlycinephiles' tag, falling back to diary")
-        logs = scrape_from_diary(username, target_slugs, cache, max_pages)
-    
+        result[username].setdefault("films", {})
+
+    # Persist so future loads can use film-page-only refresh.
+    save_user_films(username, result)
+    sync_user_films_to_sheet(username, result[username]["films"])
     print(f"{'='*60}\n")
-    return logs
+    return result
 
 
 def count_review_words(url, headers):
     """Count words in a review from a film page."""
     try:
         time.sleep(0.5)
-        resp = requests.get(url, headers=headers)
+        resp = fetch_page(url, headers=headers)
         
         if resp.status_code != 200:
             return 0
@@ -354,6 +417,150 @@ def count_review_words(url, headers):
     return 0
 
 
+def parse_film_page(html, url, slug):
+    """
+    Parse a user's film page (letterboxd.com/username/film/slug/).
+    Returns a film dict for our cache: title, slug, rating, has_review, word_count, review_link, url.
+    Returns None if the page doesn't look like a valid viewing (e.g. still a challenge page).
+    """
+    low = (html or "").lower()
+    if "just a moment" in low or "attention required" in low or "cf-browser-verification" in low:
+        return None
+    soup = BeautifulSoup(html, "html.parser")
+    review_link = url.rstrip("/")
+    review_box = soup.select_one("div.js-review-body")
+    has_review = review_box is not None
+    word_count = 0
+    if review_box:
+        paragraphs = review_box.find_all("p")
+        review_text = " ".join(p.get_text(separator=" ", strip=True) for p in paragraphs)
+        word_count = len(review_text.split())
+    rating = None
+    rating_el = soup.select_one("span.rating") or soup.select_one("[class*='rating']")
+    if rating_el:
+        rating = parse_rating(rating_el.get_text(strip=True))
+    title_el = soup.select_one("meta[property='og:title']") or soup.select_one("h1.headline-1")
+    title = title_el.get("content", "").strip() if title_el and title_el.name == "meta" else (title_el.get_text(strip=True) if title_el else f"Film ({slug})")
+    if not title:
+        title = slug.replace("-", " ").title()
+    return {
+        "slug": slug,
+        "title": title,
+        "rating": rating,
+        "has_review": has_review,
+        "word_count": word_count,
+        "review_link": review_link,
+        "url": review_link,
+    }
+
+
+def fetch_film_page_result(username, slug, film_url=None):
+    """
+    Fetch one film page. Uses film_url if provided (e.g. from tag page for rewatches: .../film/slug/1/);
+    otherwise letterboxd.com/<username>/film/<slug>/.
+    Returns None if 404 (not watched) or error; else returns film dict from parse_film_page.
+    """
+    url = film_url or f"https://letterboxd.com/{username}/film/{slug}/"
+    try:
+        time.sleep(0.3)
+        resp = fetch_page(url)
+        if resp.status_code == 404:
+            return None
+        if resp.status_code != 200:
+            return None
+        return parse_film_page(resp.text, resp.url, slug)
+    except Exception as e:
+        print(f"   Film page fetch failed for {username}/{slug}: {e}")
+        return None
+
+
+def get_all_user_logs_from_film_pages(username, target_slugs, use_persistence=True):
+    """
+    Tag page is required. Visit tag page, cross-reference with cache/db; only fetch film
+    pages for slugs we don't already have and that appear on the tag page.
+    If the tag page isn't available, zero out this user's stats (requirement, reduces complexity).
+    """
+    if use_persistence:
+        data = load_user_films(username)
+    else:
+        data = {username: {"films": {}, "stats": {}}}
+    films = data[username]["films"]
+    target_slugs = set(target_slugs)
+    # Only fetch slugs we don't already have in cache/db
+    to_fetch = [s for s in target_slugs if s not in films]
+
+    with shared_playwright_browser():
+        slug_to_url, tag_ok = get_slug_to_film_url_from_tag_page(username)
+        if not tag_ok:
+            # Tag page failed (403/timeout/exception): zero out this user's stats and persist
+            print(f"   [tag page] Unavailable for {username}; zeroing stats")
+            data[username]["films"] = {}
+            data[username]["stats"] = {}
+            if use_persistence:
+                save_user_films(username, data)
+                sync_user_films_to_sheet(username, {})
+            save_stats_cache(username, data)
+            return {username: {"films": {}, "stats": {}}}
+        if not slug_to_url:
+            # Got 200 but 0 films parsed (page not ready or empty tag): leave existing data, no fetch
+            return {username: {"films": films}}
+
+        # Only fetch slugs that are on the tag page and not already in cache/db
+        to_fetch = [s for s in to_fetch if s in slug_to_url]
+        if to_fetch:
+            print(f"[persistence] Checking {len(to_fetch)} film pages for {username} (tag page has {len(slug_to_url)} films)")
+        for slug in to_fetch:
+            film_url = slug_to_url[slug]
+            result = fetch_film_page_result(username, slug, film_url=film_url)
+            if result is not None:
+                films[slug] = result
+                print(f"   Cached: {slug} (rating={result.get('rating')}, review={result.get('word_count', 0)} words)")
+
+    data[username]["films"] = films
+    if use_persistence:
+        save_user_films(username, data)
+        sync_user_films_to_sheet(username, films)
+    save_stats_cache(username, data)
+    return {username: {"films": films}}
+
+
+def warm_film_data_for_new_slug(usernames, new_slug):
+    """
+    After a meeting is marked complete, warm cache/persistence for the new slug.
+    Tag page required: if unavailable, zero out that user's stats. Only fetch when we
+    don't already have data and the slug appears on the tag page.
+    """
+    if not usernames or not new_slug:
+        return
+    print(f"[warm] Updating cache and persistence for new slug {new_slug} ({len(usernames)} users)")
+    with shared_playwright_browser():
+        for username in usernames:
+            slug_to_url, tag_ok = get_slug_to_film_url_from_tag_page(username)
+            if not tag_ok:
+                print(f"   [tag page] Unavailable for {username}; zeroing stats")
+                data = {username: {"films": {}, "stats": {}}}
+                save_user_films(username, data)
+                sync_user_films_to_sheet(username, {})
+                save_stats_cache(username, data)
+                continue
+            if not slug_to_url or new_slug not in slug_to_url:
+                continue
+            # Cross-reference cache: skip if we already have this slug
+            existing = load_user_films(username)
+            if existing.get(username, {}).get("films", {}).get(new_slug):
+                continue
+            film_url = slug_to_url[new_slug]
+            result = fetch_film_page_result(username, new_slug, film_url=film_url)
+            if result is None:
+                continue
+            data = load_user_films(username)
+            data[username].setdefault("films", {})[new_slug] = result
+            save_user_films(username, data)
+            sync_user_films_to_sheet(username, data[username]["films"])
+            save_stats_cache(username, data)
+            print(f"   {username}: {new_slug} (rating={result.get('rating')}, {result.get('word_count', 0)} words)")
+
+
 def user_watched_last_film(username, movie_slug):
     """
     Quick check: Did user watch a specific movie?
@@ -366,7 +573,7 @@ def user_watched_last_film(username, movie_slug):
     
     try:
         time.sleep(0.3)
-        resp = requests.get(url, headers=headers)
+        resp = fetch_page(url, headers=headers)
         
         if resp.status_code != 200:
             return False
@@ -444,7 +651,7 @@ def get_user_number_of_movies_watched(username):
     print(f"Fetching profile page for {username}: {letterboxd_url}")
 
     try:
-        resp = requests.get(letterboxd_url, headers=headers, timeout=10)
+        resp = fetch_page(letterboxd_url, headers=headers, timeout=10)
         resp.raise_for_status()
     except requests.RequestException as e:
         print(f"Error fetching profile for {username}: {e}")
