@@ -1,11 +1,16 @@
 from collections import defaultdict
 import os
+import queue
 import re
 import statistics
 import requests
 import time
 import threading
+from concurrent.futures import Future, ThreadPoolExecutor
 from urllib.parse import urlparse
+
+# One worker thread for "one browser per user" flows (warm). Playwright runs only in this thread.
+_playwright_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="playwright")
 
 
 def _playwright_headless():
@@ -26,8 +31,10 @@ def _chromium_launch_args():
         ]
     return []  # visible browser: use defaults so it can attach to your display
 
-# Optional shared Playwright browser per thread (e.g. one per user scrape to avoid 30+ launches).
-_shared_browser_tls = threading.local()
+# Single browser thread: all Playwright runs here (avoids "Sync API inside asyncio loop" and one Chrome for all requests).
+_browser_request_queue = queue.Queue()
+_browser_thread_started = threading.Lock()
+_browser_thread = None
 
 try:
     import cloudscraper
@@ -95,71 +102,100 @@ def _apply_playwright_context_options(context, user_agent):
         pass
 
 
+def _browser_thread_worker():
+    """Runs in a dedicated thread (no asyncio). One browser, new page (tab) per request."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        while True:
+            _, _, _, _, future = _browser_request_queue.get()
+            if future is None:
+                break
+            future.set_result(None)
+        return
+    pw = sync_playwright().start()
+    browser = pw.chromium.launch(
+        headless=_playwright_headless(),
+        args=_chromium_launch_args(),
+    )
+    context = browser.new_context(
+        user_agent=DEFAULT_BROWSER_HEADERS["User-Agent"],
+        viewport={"width": 1280, "height": 720},
+        locale="en-US",
+        timezone_id="America/New_York",
+    )
+    _apply_playwright_context_options(context, DEFAULT_BROWSER_HEADERS["User-Agent"])
+    print("[fetch] Shared Playwright browser started (single instance, new tab per request)")
+    while True:
+        item = _browser_request_queue.get()
+        url, timeout, user_agent, extra_wait_ms, future = item
+        if future is None:
+            break
+        try:
+            page = context.new_page()
+            try:
+                page.goto(url, wait_until="load", timeout=timeout * 1000)
+                page.wait_for_timeout(extra_wait_ms)
+                if "/tag/" in url and "/films" in url:
+                    try:
+                        page.wait_for_selector("div[data-item-slug]", timeout=12000)
+                    except Exception:
+                        pass
+                elif "/film/" in url:
+                    try:
+                        page.wait_for_selector("h1.headline-1", timeout=15000)
+                    except Exception:
+                        pass
+                html = page.content()
+                final_url = page.url
+                future.set_result((final_url, html))
+            finally:
+                page.close()
+        except Exception as e:
+            print(f"[fetch] Playwright request failed: {e}")
+            future.set_result(None)
+    try:
+        context.close()
+        browser.close()
+        pw.stop()
+    except Exception:
+        pass
+    print("[fetch] Shared Playwright browser closed")
+
+
+def _ensure_browser_thread():
+    global _browser_thread
+    with _browser_thread_started:
+        if _browser_thread is not None and _browser_thread.is_alive():
+            return
+        _browser_thread = threading.Thread(target=_browser_thread_worker, daemon=True)
+        _browser_thread.start()
+
+
 def _playwright_fetch(url, timeout, user_agent, extra_wait_after_load_ms=6000):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         print("[fetch] Playwright not installed, skipping browser request")
         return None
-
-    def _run_page(context):
-        page = context.new_page()
-        try:
-            # Wait for load so Cloudflare verification can run; use generous timeout.
-            page.goto(url, wait_until="load", timeout=timeout * 1000)
-            # Give Cloudflare/JS time to finish before we read (avoid capturing "Just a moment").
-            page.wait_for_timeout(extra_wait_after_load_ms)
-            # Wait for real content so we don't capture an incomplete/challenge page.
-            if "/tag/" in url and "/films" in url:
-                try:
-                    page.wait_for_selector("div[data-item-slug]", timeout=12000)
-                except Exception:
-                    pass
-            elif "/film/" in url:
-                # Film page: wait for real Letterboxd content (not Cloudflare interstitial).
-                try:
-                    page.wait_for_selector("h1.headline-1", timeout=15000)
-                except Exception:
-                    pass
-            html = page.content()
-            return page.url, html
-        finally:
-            page.close()
-
-    print(f"[fetch] Playwright request: {url}")
+    _ensure_browser_thread()
+    future = Future()
+    _browser_request_queue.put((url, timeout, user_agent, extra_wait_after_load_ms, future))
     try:
-        ctx = getattr(_shared_browser_tls, "context", None)
-        if ctx is not None:
-            final_url, html = _run_page(ctx)
-            print(f"[fetch] Playwright got page (200) for {final_url} [shared browser]")
-        else:
-            with sync_playwright() as p:
-                browser = p.chromium.launch(
-                    headless=_playwright_headless(),
-                    args=_chromium_launch_args(),
-                )
-                context = browser.new_context(
-                    user_agent=user_agent,
-                    viewport={"width": 1280, "height": 720},
-                    locale="en-US",
-                    timezone_id="America/New_York",
-                )
-                _apply_playwright_context_options(context, user_agent)
-                final_url, html = _run_page(context)
-                context.close()
-                browser.close()
-            print(f"[fetch] Playwright got page (200) for {final_url}")
+        result = future.result(timeout=timeout + 30)
     except Exception as e:
         print(f"[fetch] Playwright request failed: {e}")
         return None
-
+    if result is None:
+        return None
+    final_url, html = result
+    print(f"[fetch] Playwright got page (200) for {final_url} [shared browser]")
     synthetic = requests.Response()
     synthetic.url = final_url
     synthetic._content = html.encode("utf-8")
     synthetic.encoding = "utf-8"
     synthetic.headers = {"server": "playwright"}
     synthetic.request = requests.Request("GET", final_url).prepare()
-    # If we still have challenge/interstitial content, mark as 403 so caller can retry or fallback.
     text_lower = (html or "").lower()
     if any(m in text_lower for m in ("just a moment", "attention required", "cf-browser-verification")):
         synthetic.status_code = 403
@@ -168,51 +204,27 @@ def _playwright_fetch(url, timeout, user_agent, extra_wait_after_load_ms=6000):
     return synthetic
 
 
-def shared_playwright_browser(user_agent=None, timeout=45):
-    """
-    Context manager: use one Playwright browser for all fetch_page() calls inside the block.
-    Use this in get_all_user_logs so we don't launch 30+ browsers per user (avoids worker timeout).
-    """
-    from playwright.sync_api import sync_playwright
+def run_playwright_in_thread(fn, *args, **kwargs):
+    """Run fn(*args, **kwargs) in a fresh dedicated thread (no asyncio, no executor reuse). Single browser for whole run."""
+    result_holder = []
+    def run():
+        result_holder.append(fn(*args, **kwargs))
+    t = threading.Thread(target=run, name="warm-browser")
+    t.start()
+    t.join()
+    return result_holder[0] if result_holder else None
 
-    user_agent = user_agent or DEFAULT_BROWSER_HEADERS["User-Agent"]
 
+def shared_playwright_browser(user_agent=None, timeout=45, long_lived=False):
+    """
+    No-op context manager. Kept for API compatibility.
+    For warm: use run_playwright_in_thread with a per-user browser instead.
+    """
     class _Ctx:
         def __enter__(self):
-            self._pw = sync_playwright().start()
-            self._browser = self._pw.chromium.launch(
-                headless=_playwright_headless(),
-                args=_chromium_launch_args(),
-            )
-            self._context = self._browser.new_context(
-                user_agent=user_agent,
-                viewport={"width": 1280, "height": 720},
-                locale="en-US",
-                timezone_id="America/New_York",
-            )
-            _apply_playwright_context_options(self._context, user_agent)
-            _shared_browser_tls.playwright = self._pw
-            _shared_browser_tls.browser = self._browser
-            _shared_browser_tls.context = self._context
-            if not _playwright_headless():
-                print("[fetch] Shared Playwright browser started (visible). If no window appears, run with: PLAYWRIGHT_HEADLESS=0 python letterboxd.py")
-            else:
-                print("[fetch] Shared Playwright browser started for this scrape (headless)")
             return self
-
         def __exit__(self, *args):
-            try:
-                _shared_browser_tls.context.close()
-                _shared_browser_tls.browser.close()
-                _shared_browser_tls.playwright.stop()
-            except Exception as e:
-                print(f"[fetch] Error closing shared browser: {e}")
-            finally:
-                for key in ("context", "browser", "playwright"):
-                    if hasattr(_shared_browser_tls, key):
-                        delattr(_shared_browser_tls, key)
-            print("[fetch] Shared Playwright browser closed")
-
+            pass
     return _Ctx()
 
 

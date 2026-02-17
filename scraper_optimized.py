@@ -1,13 +1,19 @@
 import json
+import re
+import threading
 import time
 from bs4 import BeautifulSoup
 import requests
-from utils import slugify, extract_full_date, parse_rating, resolve_letterboxd_url, fetch_page, shared_playwright_browser
-import re
-from utils import parse_rating
+from utils import (
+    slugify, extract_full_date, parse_rating, resolve_letterboxd_url, fetch_page, shared_playwright_browser,
+    run_playwright_in_thread, DEFAULT_BROWSER_HEADERS,
+    _playwright_headless, _chromium_launch_args, _apply_playwright_context_options,
+)
 from cache import *
 from persistence import load_user_films, save_user_films, load_all_users_films
 from film_log_sheet import sync_user_films_to_sheet
+
+_warm_lock = threading.Lock()
 
 def check_user_has_tag(username, tag_name="onlycinephiles"):
     """
@@ -474,91 +480,267 @@ def fetch_film_page_result(username, slug, film_url=None):
         return None
 
 
+def _refresh_one_user_in_one_browser(username, target_slugs, existing_films, tag_name="onlycinephiles"):
+    """
+    Run in run_playwright_in_thread: ONE browser, ONE tab reused for tag + all film pages.
+    Returns (films_dict, tag_ok). tag_ok=False means tag page failed (zero user).
+    """
+    from playwright.sync_api import sync_playwright
+    user_agent = DEFAULT_BROWSER_HEADERS["User-Agent"]
+    films = dict(existing_films)
+    target_slugs = set(target_slugs)
+    to_fetch = [s for s in target_slugs if s not in films]
+    if not to_fetch:
+        return (films, True)
+    tag_url = f"https://letterboxd.com/{username}/tag/{tag_name}/films/"
+    context = None
+    browser = None
+    pw = None
+    try:
+        pw = sync_playwright().start()
+        browser = pw.chromium.launch(
+            headless=_playwright_headless(),
+            args=_chromium_launch_args(),
+        )
+        context = browser.new_context(
+            user_agent=user_agent,
+            viewport={"width": 1280, "height": 720},
+            locale="en-US",
+            timezone_id="America/New_York",
+        )
+        _apply_playwright_context_options(context, user_agent)
+        page = context.new_page()
+        print("[refresh] One browser, one tab (reused for all URLs)")
+        # Longer timeout for first load (Cloudflare / slow network); don't zero user on timeout
+        page.goto(tag_url, wait_until="domcontentloaded", timeout=90000)
+        page.wait_for_timeout(6000)
+        try:
+            page.wait_for_selector("div[data-item-slug]", timeout=15000)
+        except Exception:
+            pass
+        html = page.content()
+        slug_to_url = _parse_tag_page_html(html, username, tag_name)
+        # Only zero when we got a definite challenge/block page; timeout/error = keep existing data
+        if (not html or "just a moment" in (html or "").lower() or
+                "attention required" in (html or "").lower() or "cf-browser-verification" in (html or "").lower()):
+            return ({}, False)
+        if not slug_to_url:
+            return (films, True)
+        to_fetch = [s for s in to_fetch if s in slug_to_url]
+        for slug in to_fetch:
+            film_url = slug_to_url[slug]
+            page.goto(film_url, wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(4000)
+            try:
+                page.wait_for_selector("h1.headline-1", timeout=15000)
+            except Exception:
+                pass
+            html = page.content()
+            result = parse_film_page(html, film_url, slug)
+            if result:
+                films[slug] = result
+                print(f"   Cached: {slug} (rating={result.get('rating')}, {result.get('word_count', 0)} words)")
+        page.close()
+        return (films, True)
+    except Exception as e:
+        print(f"   [refresh] Error (keeping existing data): {e}")
+        # Timeout or other error: don't zero the user, keep existing films
+        return (films, True)
+    finally:
+        try:
+            if context:
+                context.close()
+            if browser:
+                browser.close()
+            if pw:
+                pw.stop()
+        except Exception:
+            pass
+        print("[refresh] Browser closed")
+
+
 def get_all_user_logs_from_film_pages(username, target_slugs, use_persistence=True):
     """
-    Tag page is required. Visit tag page, cross-reference with cache/db; only fetch film
-    pages for slugs we don't already have and that appear on the tag page.
-    If the tag page isn't available, zero out this user's stats (requirement, reduces complexity).
+    Tag page is required. Uses one browser, one tab (same as warm) when use_one_browser=True.
+    If the tag page isn't available, zero out this user's stats.
     """
     if use_persistence:
         data = load_user_films(username)
     else:
         data = {username: {"films": {}, "stats": {}}}
     films = data[username]["films"]
-    target_slugs = set(target_slugs)
-    # Only fetch slugs we don't already have in cache/db
-    to_fetch = [s for s in target_slugs if s not in films]
-
-    with shared_playwright_browser():
-        slug_to_url, tag_ok = get_slug_to_film_url_from_tag_page(username)
-        if not tag_ok:
-            # Tag page failed (403/timeout/exception): zero out this user's stats and persist
-            print(f"   [tag page] Unavailable for {username}; zeroing stats")
-            data[username]["films"] = {}
-            data[username]["stats"] = {}
-            if use_persistence:
-                save_user_films(username, data)
-                sync_user_films_to_sheet(username, {})
-            save_stats_cache(username, data)
-            return {username: {"films": {}, "stats": {}}}
-        if not slug_to_url:
-            # Got 200 but 0 films parsed (page not ready or empty tag): leave existing data, no fetch
-            return {username: {"films": films}}
-
-        # Only fetch slugs that are on the tag page and not already in cache/db
-        to_fetch = [s for s in to_fetch if s in slug_to_url]
-        if to_fetch:
-            print(f"[persistence] Checking {len(to_fetch)} film pages for {username} (tag page has {len(slug_to_url)} films)")
-        for slug in to_fetch:
-            film_url = slug_to_url[slug]
-            result = fetch_film_page_result(username, slug, film_url=film_url)
-            if result is not None:
-                films[slug] = result
-                print(f"   Cached: {slug} (rating={result.get('rating')}, review={result.get('word_count', 0)} words)")
-
-    data[username]["films"] = films
+    existing_films = dict(films)
+    with _warm_lock:
+        films_dict, tag_ok = run_playwright_in_thread(
+            _refresh_one_user_in_one_browser, username, target_slugs, existing_films
+        )
+    if not tag_ok:
+        print(f"   [tag page] Unavailable for {username}; zeroing stats")
+        data[username]["films"] = {}
+        data[username]["stats"] = {}
+        if use_persistence:
+            save_user_films(username, data)
+            sync_user_films_to_sheet(username, {})
+        save_stats_cache(username, data)
+        return {username: {"films": {}, "stats": {}}}
+    data[username]["films"] = films_dict
     if use_persistence:
         save_user_films(username, data)
-        sync_user_films_to_sheet(username, films)
+        sync_user_films_to_sheet(username, films_dict)
     save_stats_cache(username, data)
-    return {username: {"films": films}}
+    return {username: {"films": films_dict}}
+
+
+def _parse_tag_page_html(html, username, tag_name="onlycinephiles"):
+    """Parse tag page HTML (from Playwright) into slug -> film URL dict. Same logic as get_slug_to_film_url_from_tag_page."""
+    slug_to_url = {}
+    if not html or "just a moment" in (html or "").lower() or "attention required" in (html or "").lower():
+        return slug_to_url
+    soup = BeautifulSoup(html, "html.parser")
+    for film_container in soup.select("li.griditem"):
+        try:
+            slug_el = film_container.select_one("div[data-item-slug]")
+            if not slug_el:
+                continue
+            slug = slug_el.attrs.get("data-item-slug")
+            if not slug:
+                continue
+            rating_el = film_container.select_one("p.poster-viewingdata")
+            review_anchor = rating_el.select_one("a.review-micro") if rating_el else None
+            if review_anchor and review_anchor.get("href"):
+                href = (review_anchor.get("href") or "").lstrip("/")
+                film_url = f"https://letterboxd.com/{href}" if href and not href.startswith("http") else href
+                slug_to_url[slug] = film_url.rstrip("/") + "/"
+            else:
+                film_anchor = film_container.select_one(f'a[href*="/film/{slug}"]')
+                if film_anchor and film_anchor.get("href"):
+                    href = (film_anchor.get("href") or "").lstrip("/")
+                    film_url = f"https://letterboxd.com/{href}" if href and not href.startswith("http") else href
+                    slug_to_url[slug] = film_url.rstrip("/") + "/"
+                else:
+                    slug_to_url[slug] = f"https://letterboxd.com/{username}/film/{slug}/"
+        except (IndexError, KeyError, TypeError):
+            continue
+    return slug_to_url
+
+
+def _warm_all_users_in_one_browser(usernames, new_slug, tag_name="onlycinephiles"):
+    """
+    One browser, one tab (reused). Single launch for entire run.
+    For each user: goto tag page → parse links → goto film page if needed → parse. Same tab for all.
+    Returns list of (username, slug_to_url, tag_ok, film_result).
+    """
+    from playwright.sync_api import sync_playwright
+    user_agent = DEFAULT_BROWSER_HEADERS["User-Agent"]
+    results = []
+    context = None
+    browser = None
+    pw = None
+    n = len(usernames)
+    print(f"[warm] Starting single browser for {n} users (one tab, reuse for all URLs)")
+    try:
+        pw = sync_playwright().start()
+        browser = pw.chromium.launch(
+            headless=_playwright_headless(),
+            args=_chromium_launch_args(),
+        )
+        context = browser.new_context(
+            user_agent=user_agent,
+            viewport={"width": 1280, "height": 720},
+            locale="en-US",
+            timezone_id="America/New_York",
+        )
+        _apply_playwright_context_options(context, user_agent)
+        page = context.new_page()
+        print("[warm] Browser launched once — reusing same tab for all navigations")
+        for idx, username in enumerate(usernames):
+            try:
+                tag_url = f"https://letterboxd.com/{username}/tag/{tag_name}/films/"
+                # domcontentloaded = don't wait for all images (Letterboxd has many posters); then wait for grid
+                page.goto(tag_url, wait_until="domcontentloaded", timeout=90000)
+                page.wait_for_timeout(4000)
+                try:
+                    page.wait_for_selector("div[data-item-slug]", timeout=35000)  # grid is JS-rendered
+                except Exception:
+                    pass
+                html = page.content()
+                slug_to_url = _parse_tag_page_html(html, username, tag_name)
+                if (not html or "just a moment" in (html or "").lower() or
+                        "attention required" in (html or "").lower() or
+                        "cf-browser-verification" in (html or "").lower()):
+                    results.append((username, {}, False, None))
+                    continue
+                if not slug_to_url:
+                    results.append((username, slug_to_url, True, None))
+                    continue
+                if new_slug not in slug_to_url:
+                    results.append((username, slug_to_url, True, None))
+                    continue
+                film_url = slug_to_url[new_slug]
+                page.goto(film_url, wait_until="domcontentloaded", timeout=60000)
+                page.wait_for_timeout(4000)
+                try:
+                    page.wait_for_selector("h1.headline-1", timeout=20000)
+                except Exception:
+                    pass
+                html = page.content()
+                result = parse_film_page(html, film_url, new_slug)
+                results.append((username, slug_to_url, True, result))
+            except Exception as e:
+                print(f"   [warm] Error for {username} (keeping existing data): {e}")
+                # Timeout/error: don't zero this user
+                results.append((username, {}, True, None))
+        page.close()
+    finally:
+        try:
+            if context:
+                context.close()
+            if browser:
+                browser.close()
+            if pw:
+                pw.stop()
+        except Exception:
+            pass
+        print("[warm] Browser closed")
+    return results
 
 
 def warm_film_data_for_new_slug(usernames, new_slug):
     """
     After a meeting is marked complete, warm cache/persistence for the new slug.
-    Tag page required: if unavailable, zero out that user's stats. Only fetch when we
-    don't already have data and the slug appears on the tag page.
+    One browser, one tab reused: tag page → parse links → film page → parse, per user. Minimal and fast.
     """
     if not usernames or not new_slug:
         return
-    print(f"[warm] Updating cache and persistence for new slug {new_slug} ({len(usernames)} users)")
-    with shared_playwright_browser():
-        for username in usernames:
-            slug_to_url, tag_ok = get_slug_to_film_url_from_tag_page(username)
-            if not tag_ok:
-                print(f"   [tag page] Unavailable for {username}; zeroing stats")
-                data = {username: {"films": {}, "stats": {}}}
-                save_user_films(username, data)
-                sync_user_films_to_sheet(username, {})
-                save_stats_cache(username, data)
-                continue
-            if not slug_to_url or new_slug not in slug_to_url:
-                continue
-            # Cross-reference cache: skip if we already have this slug
-            existing = load_user_films(username)
-            if existing.get(username, {}).get("films", {}).get(new_slug):
-                continue
-            film_url = slug_to_url[new_slug]
-            result = fetch_film_page_result(username, new_slug, film_url=film_url)
-            if result is None:
-                continue
-            data = load_user_films(username)
-            data[username].setdefault("films", {})[new_slug] = result
+    users_to_warm = [
+        u for u in usernames
+        if not load_user_films(u).get(u, {}).get("films", {}).get(new_slug)
+    ]
+    if not users_to_warm:
+        return
+    print(f"[warm] Updating cache for new slug {new_slug} ({len(users_to_warm)} users) — one browser, one tab reused")
+    with _warm_lock:
+        results = run_playwright_in_thread(_warm_all_users_in_one_browser, users_to_warm, new_slug)
+    if not results:
+        return
+    for username, slug_to_url, tag_ok, film_result in results:
+        if not tag_ok:
+            print(f"   [tag page] Unavailable for {username}; zeroing stats")
+            data = {username: {"films": {}, "stats": {}}}
             save_user_films(username, data)
-            sync_user_films_to_sheet(username, data[username]["films"])
+            sync_user_films_to_sheet(username, {})
             save_stats_cache(username, data)
-            print(f"   {username}: {new_slug} (rating={result.get('rating')}, {result.get('word_count', 0)} words)")
+            continue
+        if not slug_to_url or new_slug not in slug_to_url:
+            continue
+        if film_result is None:
+            continue
+        data = load_user_films(username)
+        data[username].setdefault("films", {})[new_slug] = film_result
+        save_user_films(username, data)
+        sync_user_films_to_sheet(username, data[username]["films"])
+        save_stats_cache(username, data)
+        print(f"   {username}: {new_slug} (rating={film_result.get('rating')}, {film_result.get('word_count', 0)} words)")
 
 
 def user_watched_last_film(username, movie_slug):

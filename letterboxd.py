@@ -1191,7 +1191,8 @@ def refresh_user(username):
     selected_records = selected_sheet.get_all_records()
     selected_slugs = [row["SLUG"] for row in selected_records if "SLUG" in row]
 
-    get_all_user_logs(username, selected_slugs)
+    # One browser, one tab (same as warm) — no Chrome start/stop per URL
+    get_all_user_logs_from_film_pages(username, selected_slugs)
 
     # Fetch logs for the user for all selected movies
     # logs = []
