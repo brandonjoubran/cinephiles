@@ -87,6 +87,11 @@
             font-weight: 500;
         }
 
+        .streak {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
         .summary-card div {
             line-height: 1.6;
             /* Added line-height for better readability */
@@ -302,7 +307,7 @@
                         style="text-decoration: none; color: inherit; display: block;">
                         <div>
                             <strong>{{ user.username }}</strong>
-                            {{ user.watched }} watched ({{ user.percentage }}%)<br>
+                            {{ user.watched }} watched ({{ user.percentage }}%){% if user.streak %}<span class="streak" title="Current streak (consecutive from latest)"> {{ user.streak }}🔥</span>{% endif %}<br>
                             Avg rating: <span class="highlight">{{ user.avg_rating }}</span><br>
                             {{ user.reviews }} reviews<br>
                             Avg words: <span class="highlight">{{ user.avg_words }}</span><br>
