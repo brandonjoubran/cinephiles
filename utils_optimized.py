@@ -65,6 +65,30 @@ def _to_float(x):
         return None
 
 
+def _normalize_film_title_for_stats(title):
+    """Use film name only for stats (most liked, etc.). Strips Letterboxd og:title wrappers."""
+    if not title or not isinstance(title, str):
+        return title or "Unknown"
+    t = title.strip()
+    # "A ★★★★★ review of City of God (2002) (5.0⭐)" or "An ... review of ..." -> film name only
+    if " review of " in t:
+        for prefix in ("A ", "An "):
+            if t.startswith(prefix) and " review of " in t:
+                t = t.split(" review of ", 1)[-1]
+                break
+    if " by " in t:
+        t = t.split(" by ")[0].strip()
+    if " • " in t:
+        t = t.split(" • ")[0].strip()
+    # Trailing " (5.0⭐)" or " (5.0)" is rating; don't strip " (2002)" (year)
+    if t and t[-1] == ")" and "(" in t:
+        last_open = t.rfind("(")
+        suffix = t[last_open:]
+        if "⭐" in suffix or re.match(r"^\(\d\.?\d*\)$", suffix):
+            t = t[:last_open].strip().rstrip()
+    return t or title
+
+
 def build_stats(logs_by_user, selected_records, rotw_counts, movies_after_date):
     stats = defaultdict(lambda: {'watched': 0, 'ratings': [], 'reviews': 0, 'words': [], 'rotw_count': 0})
     movie_ratings = defaultdict(list)
@@ -77,11 +101,12 @@ def build_stats(logs_by_user, selected_records, rotw_counts, movies_after_date):
     for username, logs in logs_by_user.items():
         for key, user_log_data in logs.items():
             title = user_log_data['title']
+            title_key = _normalize_film_title_for_stats(title)  # film name only for most/least liked, etc.
             stats[username]['watched'] += 1
             rating = _to_float(user_log_data.get('rating'))
             if rating is not None:
                 stats[username]['ratings'].append(rating)
-                movie_ratings[title].append(rating)
+                movie_ratings[title_key].append(rating)
 
             if user_log_data.get('has_review'):
                 stats[username]['reviews'] += 1
@@ -97,7 +122,7 @@ def build_stats(logs_by_user, selected_records, rotw_counts, movies_after_date):
                     longest = {
                         'user': username,
                         'words': word_count,
-                        'title': title,
+                        'title': title_key,
                         'url': log_url
                     }
 
@@ -105,7 +130,7 @@ def build_stats(logs_by_user, selected_records, rotw_counts, movies_after_date):
                     shortest = {
                         'user': username,
                         'words': word_count,
-                        'title': title,
+                        'title': title_key,
                         'url': log_url
                     }
         # Add ROTW counts from the cache

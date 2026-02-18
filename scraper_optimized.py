@@ -445,8 +445,24 @@ def parse_film_page(html, url, slug):
     rating_el = soup.select_one("span.rating") or soup.select_one("[class*='rating']")
     if rating_el:
         rating = parse_rating(rating_el.get_text(strip=True))
-    title_el = soup.select_one("meta[property='og:title']") or soup.select_one("h1.headline-1")
-    title = title_el.get("content", "").strip() if title_el and title_el.name == "meta" else (title_el.get_text(strip=True) if title_el else f"Film ({slug})")
+    # Prefer h1 (film name only); og:title is the full page title e.g. "A ★★★★★ review of City of God (2002) (5.0⭐)"
+    title_el = soup.select_one("h1.headline-1") or soup.select_one("meta[property='og:title']")
+    if title_el:
+        if title_el.name == "meta":
+            raw = title_el.get("content", "").strip()
+            # Strip "A ... review of " and " by ..." / " • " so stats show film name only
+            for prefix in ("A ", "An "):
+                if raw.lower().startswith(prefix.lower()) and " review of " in raw:
+                    raw = raw.split(" review of ", 1)[-1]
+            if " by " in raw:
+                raw = raw.split(" by ")[0].strip()
+            if " • " in raw:
+                raw = raw.split(" • ")[0].strip()
+            title = raw.strip() or slug.replace("-", " ").title()
+        else:
+            title = title_el.get_text(strip=True)
+    else:
+        title = slug.replace("-", " ").title()
     if not title:
         title = slug.replace("-", " ").title()
     return {
