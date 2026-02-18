@@ -139,10 +139,24 @@ def build_stats(logs_by_user, selected_records, rotw_counts, movies_after_date):
         else:
             stats[username]['rotw_count'] = 0
 
+    # Ordered film list (sheet order) for streak: "consecutive from the end"
+    ordered_slugs = [r['SLUG'] for r in selected_records if r.get('SLUG')]
+
+    def _streak(username):
+        watched = set(logs_by_user.get(username, {}).keys())
+        streak = 0
+        for i in range(len(ordered_slugs) - 1, -1, -1):
+            if ordered_slugs[i] in watched:
+                streak += 1
+            else:
+                break
+        return streak
+
     # Summary stats per user
     summary = []
     for username in sorted(stats, key=lambda u: stats[u]['watched'], reverse=True):
         user_stats = stats[username]
+        streak = _streak(username)
         summary.append({
             'username': username,
             'watched': user_stats['watched'],
@@ -150,7 +164,8 @@ def build_stats(logs_by_user, selected_records, rotw_counts, movies_after_date):
             'avg_rating': round(sum(user_stats['ratings']) / len(user_stats['ratings']), 2) if user_stats['ratings'] else 0,
             'reviews': user_stats['reviews'],
             'avg_words': round(sum(user_stats['words']) / len(user_stats['words']), 1) if user_stats['words'] else 0,
-            'rotw_count': user_stats['rotw_count']  # Add ROTW count to the summary
+            'rotw_count': user_stats['rotw_count'],  # Add ROTW count to the summary
+            'streak': streak,
         })
 
     # Movie stats (coerce to float in case of string ratings from sheet/cache)
