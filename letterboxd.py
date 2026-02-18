@@ -1015,7 +1015,8 @@ import random
 from collections import defaultdict
 from cache import load_cache, save_cache, CACHE_FILE, flush_cache, load_all_stats_caches_in_memory
 from scraper import user_watched_last_film
-from scraper_optimized import get_all_user_logs, user_watched_last_film_optimized, get_user_number_of_movies_watched
+from letterboxd_rss import get_all_user_logs, user_watched_film as user_watched_last_film_optimized, refresh_film_for_all_users, load_film_logs_by_user
+from scraper_optimized import get_user_number_of_movies_watched
 from utils import expand_short_url
 from utils_optimized import get_rotw_counts, build_stats, movies_after_date
 from db import get_watchlist_sheet, get_users_sheet, get_nominations_sheet, get_selected_sheet, get_meetings_sheet, get_selected_records, get_meetings_records
@@ -1129,10 +1130,8 @@ def index():
     logs_by_user = {}
     rotw_counts = {}
     
-    # 🔧 Load the cache if it exists
-    cache = load_all_stats_caches_in_memory()
-    print(cache)
-    print(cache is not None)
+    # Load cache (per-user stats/films from disk)
+    cache = load_all_stats_caches_in_memory() or {}
 
     user_sheet = get_users_sheet()
     usernames = [row[0] for row in user_sheet.get_all_values()[1:]]
@@ -1145,23 +1144,14 @@ def index():
     print(f"Selected slugs: {selected_slugs}")
     print(f"Selected dates: {selected_dates}")
     movies_after_date_object = movies_after_date(dict(zip(usernames, users_joins)), dict(zip(selected_slugs, selected_dates)))
+    rotw_counts = get_rotw_counts(selected_records)
 
-    if cache is not None:
-        print('here')
-        # usernames = ['bjoubs', 'KingKrab', 'GeoMoD', 'mskills43', 'raymondeezy']
-        for username in usernames:
-            if username in cache and cache[username] != {} and 'films' in cache.get(username, {}) and cache[username]['films'] != {}:
-                print(f"Using cached films for {username}")
-                logs_by_user[username] = cache[username]['films']
-            else:
-                print(f"♻️ Recomputing films cache for {username}")
-                logs_by_user[username] = get_all_user_logs(username, selected_slugs)[username]['films']
-            if username in cache and cache[username] != {} and 'stats' in cache.get(username, {}) and cache[username]['stats'] != {}:
-                print(f"Using cached stats for {username}")
-                rotw_counts[username] = cache[username]
-            else:
-                print(f"♻️ Recomputing stats cache for {username}")
-                rotw_counts = get_rotw_counts(selected_records)
+    # Stats page uses only db (FilmLog, Selected, Users) + cache — no live RSS/Letterboxd requests.
+    film_logs_by_user = load_film_logs_by_user()  # keys are lowercase for case-insensitive match
+    for username in usernames:
+        base = dict(film_logs_by_user.get(username.lower(), {}))
+        base.update((cache.get(username) or {}).get('films') or {})
+        logs_by_user[username] = base
 
     end_time = time.time()
     print(f"✅ Total index() execution time: {end_time - start_time:.2f} seconds")
@@ -1596,6 +1586,11 @@ def mark_watched(movie_slug):
     cache["nominated_records"] = nominated_records
     cache["selected_records"] = selected_records
     save_cache(cache)
+
+    # Step 5: For this completed film, fetch each user's RSS and persist to cache + FilmLog (no Letterboxd scraping)
+    user_sheet = get_users_sheet()
+    usernames = [row[0] for row in user_sheet.get_all_values()[1:] if row]
+    refresh_film_for_all_users(movie_slug, usernames)
 
     return redirect(url_for('watchlist'))
 
