@@ -8,12 +8,16 @@ def test_user_stats_creation():
         average_rating=3.75,
         num_reviews=10,
         avg_words_per_review=85.5,
+        streak=5,
+        rotw_count=3,
     )
     assert stats.username == "bjoubs"
     assert stats.movies_watched == 50
     assert stats.average_rating == 3.75
     assert stats.num_reviews == 10
     assert stats.avg_words_per_review == 85.5
+    assert stats.streak == 5
+    assert stats.rotw_count == 3
 
 
 def test_user_stats_serializes_to_dict():
@@ -23,6 +27,8 @@ def test_user_stats_serializes_to_dict():
         average_rating=3.75,
         num_reviews=10,
         avg_words_per_review=85.5,
+        streak=5,
+        rotw_count=3,
     )
     d = stats.model_dump()
     assert d == {
@@ -31,4 +37,6 @@ def test_user_stats_serializes_to_dict():
         "average_rating": 3.75,
         "num_reviews": 10,
         "avg_words_per_review": 85.5,
+        "streak": 5,
+        "rotw_count": 3,
     }

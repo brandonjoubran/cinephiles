@@ -7,3 +7,5 @@ class UserStats(BaseModel):
     average_rating: float
     num_reviews: int
     avg_words_per_review: float
+    streak: int
+    rotw_count: int

@@ -1,12 +1,24 @@
 from statistics import stdev
 import repository.film_log_repository as film_log_repo
 import repository.users_repository as users_repo
+import repository.selected_repository as selected_repo
 from models.film_log import FilmLog
 from models.user_stats import UserStats
 from models.club_stats import ClubStats, FilmHighlight
 
 
-def _build_user_stats(username: str, logs: list[FilmLog]) -> UserStats:
+def _compute_streak(user_logs: list[FilmLog], selected_slugs: list[str]) -> int:
+    watched_slugs = set(log.slug for log in user_logs)
+    streak = 0
+    for slug in reversed(selected_slugs):
+        if slug in watched_slugs:
+            streak += 1
+        else:
+            break
+    return streak
+
+
+def _build_user_stats(username: str, logs: list[FilmLog], selected_slugs: list[str], rotw_winners: list[str]) -> UserStats:
     reviews = [log for log in logs if log.has_review]
     total_words = sum(r.word_count for r in reviews)
 
@@ -16,17 +28,21 @@ def _build_user_stats(username: str, logs: list[FilmLog]) -> UserStats:
         average_rating=round(sum(log.rating for log in logs) / len(logs), 2) if logs else 0,
         num_reviews=len(reviews),
         avg_words_per_review=round(total_words / len(reviews), 2) if reviews else 0,
+        streak=_compute_streak(logs, selected_slugs),
+        rotw_count=rotw_winners.count(username),
     )
 
 
 def get_all_user_stats() -> list[UserStats]:
     all_logs = film_log_repo.get_all_film_logs()
     usernames = users_repo.get_usernames()
+    selected_slugs = selected_repo.get_selected_slugs()
+    rotw_winners = selected_repo.get_rotw_winners()
 
     stats = []
     for username in usernames:
         user_logs = [log for log in all_logs if log.username == username]
-        stats.append(_build_user_stats(username, user_logs))
+        stats.append(_build_user_stats(username, user_logs, selected_slugs, rotw_winners))
 
     return stats
 
