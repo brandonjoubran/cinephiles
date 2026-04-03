@@ -1,9 +1,17 @@
 from infrastructure.sheets_client import get_worksheet
+from infrastructure.cache import cache
 from models.user import User
 
+
 def get_users():
+    cached = cache.get("users")
+    if cached is not None:
+        return cached
+
     rows = get_worksheet("Users").get_all_records()
-    return [User(username=row["USERNAME"], join_date=row["DATE_JOINED"]) for row in rows]
+    users = [User(username=row["USERNAME"], join_date=row["DATE_JOINED"]) for row in rows]
+    cache.set("users", users)
+    return users
 
 
 def get_usernames():
@@ -15,4 +23,5 @@ def get_join_dates():
 
 
 def add_user(user: User):
+    cache.clear()
     return get_worksheet("Users").append_row([user.username, user.join_date])

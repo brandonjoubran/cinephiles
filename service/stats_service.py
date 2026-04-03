@@ -1,5 +1,6 @@
 from statistics import stdev
 import repository.film_log_repository as film_log_repo
+import repository.users_repository as users_repo
 from models.film_log import FilmLog
 from models.user_stats import UserStats
 from models.club_stats import ClubStats, FilmHighlight
@@ -20,7 +21,7 @@ def _build_user_stats(username: str, logs: list[FilmLog]) -> UserStats:
 
 def get_all_user_stats() -> list[UserStats]:
     all_logs = film_log_repo.get_all_film_logs()
-    usernames = set(log.username for log in all_logs)
+    usernames = users_repo.get_usernames()
 
     stats = []
     for username in usernames:
