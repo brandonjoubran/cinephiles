@@ -7,8 +7,8 @@ from models.club_stats import ClubStats, FilmHighlight
 client = TestClient(app)
 
 FAKE_STATS = [
-    UserStats(username="bjoubs", movies_watched=50, average_rating=3.75, num_reviews=10, avg_words_per_review=85.5, streak=5),
-    UserStats(username="kingkrab", movies_watched=30, average_rating=4.0, num_reviews=5, avg_words_per_review=60.0, streak=3),
+    UserStats(username="bjoubs", movies_watched=50, average_rating=3.75, num_reviews=10, avg_words_per_review=85.5, streak=5, rotw_count=2),
+    UserStats(username="kingkrab", movies_watched=30, average_rating=4.0, num_reviews=5, avg_words_per_review=60.0, streak=3, rotw_count=1),
 ]
 
 FAKE_CLUB_STATS = ClubStats(
@@ -27,6 +27,7 @@ def test_list_user_stats_returns_200():
         patch("service.stats_service.film_log_repo.get_all_film_logs", return_value=[]),
         patch("service.stats_service.users_repo.get_usernames", return_value=[]),
         patch("service.stats_service.selected_repo.get_selected_slugs", return_value=[]),
+        patch("service.stats_service.selected_repo.get_rotw_winners", return_value=[]),
     ):
         response = client.get("/stats")
     assert response.status_code == 200
