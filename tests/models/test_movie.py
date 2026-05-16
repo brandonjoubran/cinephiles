@@ -15,7 +15,6 @@ def _movie(**overrides):
         "nominated_by": "",
         "voted_by": "",
         "watched_date": "",
-        "rotw": "",
     }
     defaults.update(overrides)
     return Movie(**defaults)
@@ -70,21 +69,6 @@ def test_voted_by_accepts_list():
     assert movie.voted_by == ["bjoubs", "KingKrab"]
 
 
-def test_rotw_parses_comma_separated_string():
-    movie = _movie(rotw="bjoubs, KingKrab")
-    assert movie.rotw == ["bjoubs", "KingKrab"]
-
-
-def test_rotw_single_winner():
-    movie = _movie(rotw="bjoubs")
-    assert movie.rotw == ["bjoubs"]
-
-
-def test_rotw_empty_string_returns_empty_list():
-    movie = _movie(rotw="")
-    assert movie.rotw == []
-
-
 # ── Validation ────────────────────────────────────────────────────────────────
 
 def test_empty_title_raises():
@@ -110,8 +94,7 @@ def test_slug_is_stripped():
 # ── Serialization ─────────────────────────────────────────────────────────────
 
 def test_serializes_to_dict():
-    movie = _movie(status="watched", voted_by="bjoubs, KingKrab", rotw="bjoubs")
+    movie = _movie(status="watched", voted_by="bjoubs, KingKrab")
     d = movie.model_dump()
     assert d["status"] == MovieStatus.WATCHED
     assert d["voted_by"] == ["bjoubs", "KingKrab"]
-    assert d["rotw"] == ["bjoubs"]

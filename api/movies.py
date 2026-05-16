@@ -22,13 +22,6 @@ class VoteRequest(BaseModel):
     username: str
 
 
-class CompleteMovieRequest(BaseModel):
-    rotw_winners: list[str]
-    meeting_start_time: str
-    meeting_end_time: str
-    participants: list[str]
-
-
 @router.get("/movies")
 def list_movies() -> list[Movie]:
     return movies_service.get_all_movies()
@@ -71,14 +64,8 @@ def select_movie(slug: str) -> Movie:
 
 
 @router.post("/movies/{slug}/complete")
-def complete_movie(slug: str, body: CompleteMovieRequest) -> Movie:
-    return movies_service.complete_movie(
-        slug=slug,
-        rotw_winners=body.rotw_winners,
-        meeting_start_time=body.meeting_start_time,
-        meeting_end_time=body.meeting_end_time,
-        participants=body.participants,
-    )
+def complete_movie(slug: str) -> Movie:
+    return movies_service.complete_movie(slug)
 
 
 @router.delete("/movies/{slug}")

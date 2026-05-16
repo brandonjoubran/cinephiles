@@ -20,7 +20,6 @@ class Movie(BaseModel):
     nominated_by: str
     voted_by: list[str]
     watched_date: str
-    rotw: list[str]
 
     @field_validator("title")
     @classmethod
@@ -52,17 +51,6 @@ class Movie(BaseModel):
     @field_validator("voted_by", mode="before")
     @classmethod
     def parse_voted_by(cls, value) -> list[str]:
-        if isinstance(value, list):
-            return [v.strip() for v in value if v.strip()]
-        if isinstance(value, str):
-            if not value.strip():
-                return []
-            return [v.strip() for v in value.split(",") if v.strip()]
-        return []
-
-    @field_validator("rotw", mode="before")
-    @classmethod
-    def parse_rotw(cls, value) -> list[str]:
         if isinstance(value, list):
             return [v.strip() for v in value if v.strip()]
         if isinstance(value, str):

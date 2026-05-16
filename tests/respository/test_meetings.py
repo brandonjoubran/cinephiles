@@ -1,6 +1,12 @@
 from unittest.mock import MagicMock, call, patch
 from models.meeting import Meeting
-from repository.meetings_repository import get_all_meetings, add_meeting, update_meeting, delete_meeting
+from repository.meetings_repository import (
+    get_all_meetings,
+    get_rotw_winners,
+    add_meeting,
+    update_meeting,
+    delete_meeting,
+)
 
 FAKE_ROWS = [
     {
@@ -10,6 +16,7 @@ FAKE_ROWS = [
         "START_TIME": "19:00",
         "END_TIME": "21:30",
         "PARTICIPANTS": "bjoubs, KingKrab, GeoMoD",
+        "ROTW": "bjoubs",
     },
     {
         "DATE": "01/22/2025",
@@ -18,6 +25,7 @@ FAKE_ROWS = [
         "START_TIME": "20:00",
         "END_TIME": "22:00",
         "PARTICIPANTS": "bjoubs, KingKrab",
+        "ROTW": "bjoubs, KingKrab",
     },
 ]
 
@@ -41,6 +49,7 @@ def test_get_all_meetings_maps_fields():
     assert result[0].movie_slug == "the-substance"
     assert result[0].participants == ["bjoubs", "KingKrab", "GeoMoD"]
     assert result[0].start_time == "19:00"
+    assert result[0].rotw == ["bjoubs"]
 
 
 def test_get_all_meetings_empty_sheet():
@@ -49,7 +58,10 @@ def test_get_all_meetings_empty_sheet():
 
 
 def test_add_meeting_appends_row():
-    sheet = fake_worksheet([])
+    sheet = MagicMock()
+    sheet.row_values.return_value = [
+        "DATE", "MOVIE_NAME", "MOVIE_SLUG", "START_TIME", "END_TIME", "PARTICIPANTS", "ROTW",
+    ]
     meeting = Meeting(
         date="03/01/2025",
         movie_name="Heat",
@@ -57,6 +69,7 @@ def test_add_meeting_appends_row():
         start_time="19:00",
         end_time="22:00",
         participants=["bjoubs", "KingKrab"],
+        rotw=["GeoMoD"],
     )
     with patch("repository.meetings_repository.get_worksheet", return_value=sheet):
         add_meeting(meeting)
@@ -67,7 +80,19 @@ def test_add_meeting_appends_row():
         "19:00",
         "22:00",
         "bjoubs, KingKrab",
+        "GeoMoD",
     ])
+
+
+def test_get_rotw_winners_returns_flat_list():
+    with patch("repository.meetings_repository.get_worksheet", return_value=fake_worksheet(FAKE_ROWS)):
+        result = get_rotw_winners()
+    assert result == ["bjoubs", "bjoubs", "KingKrab"]
+
+
+def test_get_rotw_winners_empty_sheet():
+    with patch("repository.meetings_repository.get_worksheet", return_value=fake_worksheet([])):
+        assert get_rotw_winners() == []
 
 
 # ── update_meeting ────────────────────────────────────────────────────────────
@@ -76,7 +101,7 @@ def test_update_meeting_updates_correct_row():
     sheet = MagicMock()
     sheet.get_all_records.return_value = FAKE_ROWS
     sheet.row_values.return_value = [
-        "DATE", "MOVIE_NAME", "MOVIE_SLUG", "START_TIME", "END_TIME", "PARTICIPANTS",
+        "DATE", "MOVIE_NAME", "MOVIE_SLUG", "START_TIME", "END_TIME", "PARTICIPANTS", "ROTW",
     ]
     with patch("repository.meetings_repository.get_worksheet", return_value=sheet):
         update_meeting("the-substance", start_time="18:30", end_time="21:00")
@@ -85,11 +110,22 @@ def test_update_meeting_updates_correct_row():
     assert call(2, 5, "21:00") in calls
 
 
+def test_update_meeting_rotw():
+    sheet = MagicMock()
+    sheet.get_all_records.return_value = FAKE_ROWS
+    sheet.row_values.return_value = [
+        "DATE", "MOVIE_NAME", "MOVIE_SLUG", "START_TIME", "END_TIME", "PARTICIPANTS", "ROTW",
+    ]
+    with patch("repository.meetings_repository.get_worksheet", return_value=sheet):
+        update_meeting("the-substance", rotw=["bjoubs", "KingKrab"])
+    sheet.update_cell.assert_called_once_with(2, 7, "bjoubs, KingKrab")
+
+
 def test_update_meeting_no_match_does_nothing():
     sheet = MagicMock()
     sheet.get_all_records.return_value = FAKE_ROWS
     sheet.row_values.return_value = [
-        "DATE", "MOVIE_NAME", "MOVIE_SLUG", "START_TIME", "END_TIME", "PARTICIPANTS",
+        "DATE", "MOVIE_NAME", "MOVIE_SLUG", "START_TIME", "END_TIME", "PARTICIPANTS", "ROTW",
     ]
     with patch("repository.meetings_repository.get_worksheet", return_value=sheet):
         update_meeting("nonexistent", start_time="18:30")

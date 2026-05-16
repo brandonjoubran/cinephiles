@@ -8,6 +8,7 @@ class Meeting(BaseModel):
     start_time: str
     end_time: str
     participants: list[str]
+    rotw: list[str] = []
 
     @field_validator("movie_slug")
     @classmethod
@@ -30,6 +31,17 @@ class Meeting(BaseModel):
     @field_validator("participants", mode="before")
     @classmethod
     def parse_participants(cls, value) -> list[str]:
+        if isinstance(value, list):
+            return [v.strip() for v in value if v.strip()]
+        if isinstance(value, str):
+            if not value.strip():
+                return []
+            return [v.strip() for v in value.split(",") if v.strip()]
+        return []
+
+    @field_validator("rotw", mode="before")
+    @classmethod
+    def parse_rotw(cls, value) -> list[str]:
         if isinstance(value, list):
             return [v.strip() for v in value if v.strip()]
         if isinstance(value, str):

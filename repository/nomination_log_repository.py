@@ -1,4 +1,5 @@
 from infrastructure.sheets_client import get_worksheet
+from infrastructure.sheet_rows import append_row_by_headers
 from infrastructure.cache import cache
 from models.nomination_log import NominationLog
 
@@ -24,9 +25,10 @@ def get_all_nominations() -> list[NominationLog]:
 
 def add_nomination(nomination: NominationLog):
     cache.clear()
-    get_worksheet("NominationLog").append_row([
-        nomination.slug,
-        nomination.nominated_by,
-        ", ".join(nomination.voted_by),
-        nomination.date_nominated,
-    ])
+    sheet = get_worksheet("NominationLog")
+    append_row_by_headers(sheet, {
+        "slug": nomination.slug,
+        "nominated_by": nomination.nominated_by,
+        "voted_by": nomination.voted_by,
+        "date_nominated": nomination.date_nominated,
+    })

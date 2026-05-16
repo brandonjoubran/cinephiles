@@ -1,4 +1,5 @@
 from infrastructure.sheets_client import get_worksheet
+from infrastructure.sheet_rows import append_row_by_headers
 from infrastructure.cache import cache
 from models.user import User
 
@@ -24,4 +25,8 @@ def get_join_dates():
 
 def add_user(user: User):
     cache.clear()
-    return get_worksheet("Users").append_row([user.username, user.join_date])
+    sheet = get_worksheet("Users")
+    append_row_by_headers(sheet, {
+        "username": user.username,
+        "date_joined": user.join_date,
+    })

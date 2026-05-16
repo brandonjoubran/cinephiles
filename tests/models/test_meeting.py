@@ -11,6 +11,7 @@ def _meeting(**overrides):
         "start_time": "19:00",
         "end_time": "21:30",
         "participants": "bjoubs, KingKrab, GeoMoD",
+        "rotw": "",
     }
     defaults.update(overrides)
     return Meeting(**defaults)
@@ -35,6 +36,16 @@ def test_participants_accepts_list():
 def test_participants_empty_string_returns_empty_list():
     meeting = _meeting(participants="")
     assert meeting.participants == []
+
+
+def test_rotw_parses_comma_separated_string():
+    meeting = _meeting(rotw="bjoubs, KingKrab")
+    assert meeting.rotw == ["bjoubs", "KingKrab"]
+
+
+def test_rotw_empty_string_returns_empty_list():
+    meeting = _meeting(rotw="")
+    assert meeting.rotw == []
 
 
 def test_empty_movie_slug_raises():

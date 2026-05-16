@@ -25,7 +25,6 @@ def _movie(slug="the-substance", status="backlog", nominated_by="", voted_by=Non
         "nominated_by": nominated_by,
         "voted_by": voted_by or [],
         "watched_date": "",
-        "rotw": [],
     }
     defaults.update(overrides)
     return Movie(**defaults)
@@ -206,20 +205,12 @@ def test_complete_movie_full_flow():
         patch("service.movies_service.movies_repo.update_movie_fields") as mock_update,
         patch("service.movies_service.movies_repo.get_movies_by_status", return_value=[other_nominated]),
         patch("service.movies_service.nomination_log_repo.add_nomination") as mock_nom_log,
-        patch("service.movies_service.meetings_repo.add_meeting") as mock_meeting,
     ):
-        result = complete_movie(
-            slug="the-substance",
-            rotw_winners=["bjoubs"],
-            meeting_start_time="19:00",
-            meeting_end_time="21:30",
-            participants=["bjoubs", "KingKrab", "GeoMoD"],
-        )
+        result = complete_movie("the-substance")
 
     assert result.status == MovieStatus.WATCHED
     # Both the completed movie and the other nominated movie should be logged
     assert mock_nom_log.call_count == 2
-    mock_meeting.assert_called_once()
     # Should have updated: the completed movie + the other nominated movie reset
     assert mock_update.call_count == 2
 
@@ -228,7 +219,7 @@ def test_complete_movie_rejects_non_selected():
     movie = _movie(status="nominated")
     with patch("service.movies_service.movies_repo.get_movie_by_slug", return_value=movie):
         with pytest.raises(HTTPException) as exc:
-            complete_movie("the-substance", ["bjoubs"], "19:00", "21:30", ["bjoubs"])
+            complete_movie("the-substance")
         assert exc.value.status_code == 400
 
 

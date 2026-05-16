@@ -21,7 +21,6 @@ FAKE_ROWS = [
         "NOMINATED_BY": "KingKrab",
         "VOTED_BY": "bjoubs, GeoMoD",
         "WATCHED_DATE": "02/01/2025",
-        "ROTW": "bjoubs",
     },
     {
         "TITLE": "Anora",
@@ -34,7 +33,6 @@ FAKE_ROWS = [
         "NOMINATED_BY": "bjoubs",
         "VOTED_BY": "",
         "WATCHED_DATE": "",
-        "ROTW": "",
     },
     {
         "TITLE": "Dune: Part Two",
@@ -47,7 +45,6 @@ FAKE_ROWS = [
         "NOMINATED_BY": "",
         "VOTED_BY": "",
         "WATCHED_DATE": "",
-        "ROTW": "",
     },
 ]
 
@@ -74,7 +71,6 @@ def test_get_all_movies_maps_fields():
     assert result[0].slug == "the-substance"
     assert result[0].status == MovieStatus.WATCHED
     assert result[0].voted_by == ["bjoubs", "GeoMoD"]
-    assert result[0].rotw == ["bjoubs"]
 
 
 def test_get_all_movies_empty_sheet():
@@ -129,7 +125,11 @@ def test_get_movie_by_slug_not_found():
 # ── add_movie ─────────────────────────────────────────────────────────────────
 
 def test_add_movie_appends_row():
-    sheet = fake_worksheet([])
+    sheet = MagicMock()
+    sheet.row_values.return_value = [
+        "TITLE", "SLUG", "URL", "ADDED_BY", "DATE_ADDED", "POSTER",
+        "STATUS", "NOMINATED_BY", "VOTED_BY", "WATCHED_DATE",
+    ]
     movie = Movie(
         title="Heat",
         slug="heat-1995",
@@ -141,7 +141,6 @@ def test_add_movie_appends_row():
         nominated_by="",
         voted_by="",
         watched_date="",
-        rotw="",
     )
     with patch("repository.movies_repository.get_worksheet", return_value=sheet):
         add_movie(movie)
@@ -156,6 +155,39 @@ def test_add_movie_appends_row():
         "",
         "",
         "",
+    ])
+
+
+def test_add_movie_appends_row_respects_header_order_on_sheet():
+    sheet = MagicMock()
+    sheet.row_values.return_value = [
+        "SLUG", "TITLE", "STATUS", "URL", "ADDED_BY", "DATE_ADDED", "POSTER",
+        "NOMINATED_BY", "VOTED_BY", "WATCHED_DATE",
+    ]
+    movie = Movie(
+        title="Heat",
+        slug="heat-1995",
+        url="https://letterboxd.com/film/heat-1995/",
+        added_by="bjoubs",
+        date_added="03/01/2025",
+        poster="https://image.tmdb.org/heat.jpg",
+        status="backlog",
+        nominated_by="",
+        voted_by=[],
+        watched_date="",
+    )
+    with patch("repository.movies_repository.get_worksheet", return_value=sheet):
+        add_movie(movie)
+    sheet.append_row.assert_called_once_with([
+        "heat-1995",
+        "Heat",
+        "backlog",
+        "https://letterboxd.com/film/heat-1995/",
+        "bjoubs",
+        "03/01/2025",
+        "https://image.tmdb.org/heat.jpg",
+        "",
+        "",
         "",
     ])
 
@@ -167,7 +199,7 @@ def test_update_movie_fields_single_field():
     sheet.get_all_records.return_value = FAKE_ROWS
     sheet.row_values.return_value = [
         "TITLE", "SLUG", "URL", "ADDED_BY", "DATE_ADDED", "POSTER",
-        "STATUS", "NOMINATED_BY", "VOTED_BY", "WATCHED_DATE", "ROTW",
+        "STATUS", "NOMINATED_BY", "VOTED_BY", "WATCHED_DATE",
     ]
     with patch("repository.movies_repository.get_worksheet", return_value=sheet):
         update_movie_fields("anora", status="selected")
@@ -179,14 +211,13 @@ def test_update_movie_fields_multiple_fields():
     sheet.get_all_records.return_value = FAKE_ROWS
     sheet.row_values.return_value = [
         "TITLE", "SLUG", "URL", "ADDED_BY", "DATE_ADDED", "POSTER",
-        "STATUS", "NOMINATED_BY", "VOTED_BY", "WATCHED_DATE", "ROTW",
+        "STATUS", "NOMINATED_BY", "VOTED_BY", "WATCHED_DATE",
     ]
     with patch("repository.movies_repository.get_worksheet", return_value=sheet):
-        update_movie_fields("anora", status="watched", watched_date="03/01/2025", rotw="bjoubs")
+        update_movie_fields("anora", status="watched", watched_date="03/01/2025")
     calls = sheet.update_cell.call_args_list
     assert call(3, 7, "watched") in calls
     assert call(3, 10, "03/01/2025") in calls
-    assert call(3, 11, "bjoubs") in calls
 
 
 def test_update_movie_fields_voted_by():
@@ -194,7 +225,7 @@ def test_update_movie_fields_voted_by():
     sheet.get_all_records.return_value = FAKE_ROWS
     sheet.row_values.return_value = [
         "TITLE", "SLUG", "URL", "ADDED_BY", "DATE_ADDED", "POSTER",
-        "STATUS", "NOMINATED_BY", "VOTED_BY", "WATCHED_DATE", "ROTW",
+        "STATUS", "NOMINATED_BY", "VOTED_BY", "WATCHED_DATE",
     ]
     with patch("repository.movies_repository.get_worksheet", return_value=sheet):
         update_movie_fields("anora", voted_by="bjoubs, KingKrab")

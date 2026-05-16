@@ -27,7 +27,7 @@ def test_list_user_stats_returns_200():
         patch("service.stats_service.film_log_repo.get_all_film_logs", return_value=[]),
         patch("service.stats_service.users_repo.get_usernames", return_value=[]),
         patch("service.stats_service.selected_repo.get_selected_slugs", return_value=[]),
-        patch("service.stats_service.selected_repo.get_rotw_winners", return_value=[]),
+        patch("service.stats_service.meetings_repo.get_rotw_winners", return_value=[]),
     ):
         response = client.get("/stats")
     assert response.status_code == 200

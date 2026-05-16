@@ -18,7 +18,6 @@ def _movie(slug="the-substance", status="backlog", **overrides):
         "nominated_by": "",
         "voted_by": [],
         "watched_date": "",
-        "rotw": [],
     }
     defaults.update(overrides)
     return Movie(**defaults)
@@ -120,14 +119,8 @@ def test_complete_returns_200():
         patch("service.movies_service.movies_repo.update_movie_fields"),
         patch("service.movies_service.movies_repo.get_movies_by_status", return_value=[]),
         patch("service.movies_service.nomination_log_repo.add_nomination"),
-        patch("service.movies_service.meetings_repo.add_meeting"),
     ):
-        response = client.post("/movies/the-substance/complete", json={
-            "rotw_winners": ["bjoubs"],
-            "meeting_start_time": "19:00",
-            "meeting_end_time": "21:30",
-            "participants": ["bjoubs", "KingKrab"],
-        })
+        response = client.post("/movies/the-substance/complete")
     assert response.status_code == 200
     assert response.json()["status"] == "watched"
 

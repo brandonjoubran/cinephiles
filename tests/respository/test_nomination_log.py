@@ -37,8 +37,18 @@ def test_get_all_nominations_empty_sheet():
 
 
 def test_add_nomination_appends_row():
-    sheet = fake_worksheet([])
+    sheet = MagicMock()
+    sheet.row_values.return_value = ["SLUG", "NOMINATED_BY", "VOTED_BY", "DATE_NOMINATED"]
     nomination = NominationLog(slug="heat-1995", nominated_by="bjoubs", voted_by=["KingKrab", "GeoMoD"], date_nominated="03/01/2025")
     with patch("repository.nomination_log_repository.get_worksheet", return_value=sheet):
         add_nomination(nomination)
     sheet.append_row.assert_called_once_with(["heat-1995", "bjoubs", "KingKrab, GeoMoD", "03/01/2025"])
+
+
+def test_add_nomination_appends_row_respects_header_order_on_sheet():
+    sheet = MagicMock()
+    sheet.row_values.return_value = ["SLUG", "NOMINATED_BY", "DATE_NOMINATED", "VOTED_BY"]
+    nomination = NominationLog(slug="heat-1995", nominated_by="bjoubs", voted_by=["KingKrab"], date_nominated="03/01/2025")
+    with patch("repository.nomination_log_repository.get_worksheet", return_value=sheet):
+        add_nomination(nomination)
+    sheet.append_row.assert_called_once_with(["heat-1995", "bjoubs", "03/01/2025", "KingKrab"])

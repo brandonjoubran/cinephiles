@@ -11,7 +11,8 @@ class UpdateMeetingRequest(BaseModel):
     movie_name: str | None = None
     start_time: str | None = None
     end_time: str | None = None
-    participants: str | None = None
+    participants: list[str] | None = None
+    rotw: list[str] | None = None
 
 
 @router.get("/meetings")

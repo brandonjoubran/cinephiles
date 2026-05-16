@@ -2,10 +2,8 @@ from datetime import date
 from fastapi import HTTPException
 import repository.movies_repository as movies_repo
 import repository.nomination_log_repository as nomination_log_repo
-import repository.meetings_repository as meetings_repo
 from models.movie import Movie, MovieStatus
 from models.nomination_log import NominationLog
-from models.meeting import Meeting
 
 
 def _sync_film_log_after_complete(slug: str) -> None:
@@ -47,7 +45,6 @@ def add_movie(title: str, slug: str, url: str, added_by: str, poster: str) -> Mo
         nominated_by="",
         voted_by=[],
         watched_date="",
-        rotw=[],
     )
     movies_repo.add_movie(movie)
     return movie
@@ -110,15 +107,10 @@ def toggle_selection(slug: str) -> Movie:
     return get_movie_by_slug(slug)
 
 
-def complete_movie(
-    slug: str,
-    rotw_winners: list[str],
-    meeting_start_time: str,
-    meeting_end_time: str,
-    participants: list[str],
-) -> Movie:
-    """Mark the selected movie as watched. Also logs the nomination history,
-    creates the meeting, and resets any other nominated movies back to backlog."""
+def complete_movie(slug: str) -> Movie:
+    """Mark the selected movie as watched, log nomination history, and reset
+    other nominated movies back to backlog. ROTW and meeting details belong on
+    the Meetings sheet (can be set before or after this)."""
     movie = get_movie_by_slug(slug)
     if movie.status != MovieStatus.SELECTED:
         raise HTTPException(status_code=400, detail=f"Movie must be selected to complete (current: {movie.status.value})")
@@ -139,18 +131,7 @@ def complete_movie(
         slug,
         status=MovieStatus.WATCHED.value,
         watched_date=today,
-        rotw=", ".join(rotw_winners),
     )
-
-    # Create the meeting
-    meetings_repo.add_meeting(Meeting(
-        date=today,
-        movie_name=movie.title,
-        movie_slug=slug,
-        start_time=meeting_start_time,
-        end_time=meeting_end_time,
-        participants=participants,
-    ))
 
     # Log and reset other nominated movies back to backlog
     nominated = movies_repo.get_movies_by_status(MovieStatus.NOMINATED)

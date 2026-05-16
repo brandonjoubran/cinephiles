@@ -2,6 +2,7 @@ from statistics import stdev
 import repository.film_log_repository as film_log_repo
 import repository.users_repository as users_repo
 import repository.selected_repository as selected_repo
+import repository.meetings_repository as meetings_repo
 from models.film_log import FilmLog
 from models.user_stats import UserStats
 from models.club_stats import ClubStats, FilmHighlight
@@ -37,7 +38,7 @@ def get_all_user_stats() -> list[UserStats]:
     all_logs = film_log_repo.get_all_film_logs()
     usernames = users_repo.get_usernames()
     selected_slugs = selected_repo.get_selected_slugs()
-    rotw_winners = selected_repo.get_rotw_winners()
+    rotw_winners = meetings_repo.get_rotw_winners()
 
     stats = []
     for username in usernames:

@@ -124,7 +124,7 @@ def _patch_repos(logs, usernames, selected_slugs, rotw_winners):
         patch("service.stats_service.film_log_repo.get_all_film_logs", return_value=logs),
         patch("service.stats_service.users_repo.get_usernames", return_value=usernames),
         patch("service.stats_service.selected_repo.get_selected_slugs", return_value=selected_slugs),
-        patch("service.stats_service.selected_repo.get_rotw_winners", return_value=rotw_winners),
+        patch("service.stats_service.meetings_repo.get_rotw_winners", return_value=rotw_winners),
     )
 
 

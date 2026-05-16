@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 import repository.meetings_repository as meetings_repo
+import repository.movies_repository as movies_repo
 from models.meeting import Meeting
 
 
@@ -8,6 +9,10 @@ def get_all_meetings() -> list[Meeting]:
 
 
 def add_meeting(meeting: Meeting):
+    """Add a meeting for a club movie. Movie may still be selected (before complete)."""
+    movie = movies_repo.get_movie_by_slug(meeting.movie_slug)
+    if not movie:
+        raise HTTPException(status_code=404, detail=f"Movie '{meeting.movie_slug}' not found")
     meetings_repo.add_meeting(meeting)
 
 

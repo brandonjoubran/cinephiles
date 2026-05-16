@@ -1,10 +1,11 @@
 """
 Repository for the Movies sheet.
 
-Column order: TITLE | SLUG | URL | ADDED_BY | DATE_ADDED | POSTER |
-              STATUS | NOMINATED_BY | VOTED_BY | WATCHED_DATE | ROTW
+Expected headers: TITLE, SLUG, URL, ADDED_BY, DATE_ADDED, POSTER,
+                  STATUS, NOMINATED_BY, VOTED_BY, WATCHED_DATE (any order).
 """
 from infrastructure.sheets_client import get_worksheet
+from infrastructure.sheet_rows import append_row_by_headers
 from infrastructure.cache import cache
 from models.movie import Movie, MovieStatus
 
@@ -27,7 +28,6 @@ def get_all_movies() -> list[Movie]:
             nominated_by=row.get("NOMINATED_BY", ""),
             voted_by=row.get("VOTED_BY", ""),
             watched_date=row.get("WATCHED_DATE", ""),
-            rotw=row.get("ROTW", ""),
         )
         for row in rows
     ]
@@ -50,19 +50,19 @@ def add_movie(movie: Movie):
     """Append a new row to the Movies sheet. Caller (service layer) is
     responsible for setting defaults and checking uniqueness."""
     cache.clear()
-    get_worksheet("Movies").append_row([
-        movie.title,
-        movie.slug,
-        movie.url,
-        movie.added_by,
-        movie.date_added,
-        movie.poster,
-        movie.status.value,
-        movie.nominated_by,
-        ", ".join(movie.voted_by),
-        movie.watched_date,
-        ", ".join(movie.rotw),
-    ])
+    sheet = get_worksheet("Movies")
+    append_row_by_headers(sheet, {
+        "title": movie.title,
+        "slug": movie.slug,
+        "url": movie.url,
+        "added_by": movie.added_by,
+        "date_added": movie.date_added,
+        "poster": movie.poster,
+        "status": movie.status,
+        "nominated_by": movie.nominated_by,
+        "voted_by": movie.voted_by,
+        "watched_date": movie.watched_date,
+    })
 
 
 def update_movie_fields(slug: str, **fields):
