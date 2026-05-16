@@ -27,6 +27,22 @@ class FilmLog(BaseModel):
             raise ValueError("slug cannot be empty")
         return value
 
+    @field_validator("has_review", mode="before")
+    @classmethod
+    def has_review_from_sheet(cls, value) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value is None or value == "":
+            return False
+        return str(value).strip().upper() == "TRUE"
+
+    @field_validator("word_count", mode="before")
+    @classmethod
+    def word_count_from_sheet(cls, value) -> int:
+        if value == "" or value is None:
+            return 0
+        return int(value)
+
     @field_validator("rating", mode="before")
     @classmethod
     def rating_must_be_between_0_and_5(cls, value) -> float:

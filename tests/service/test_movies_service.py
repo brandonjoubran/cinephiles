@@ -205,8 +205,11 @@ def test_complete_movie_full_flow():
         patch("service.movies_service.movies_repo.update_movie_fields") as mock_update,
         patch("service.movies_service.movies_repo.get_movies_by_status", return_value=[other_nominated]),
         patch("service.movies_service.nomination_log_repo.add_nomination") as mock_nom_log,
+        patch("service.movies_service.record_club_watches_after_complete") as mock_sync,
     ):
         result = complete_movie("the-substance")
+
+    mock_sync.assert_called_once()
 
     assert result.status == MovieStatus.WATCHED
     # Both the completed movie and the other nominated movie should be logged

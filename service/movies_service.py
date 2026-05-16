@@ -4,13 +4,7 @@ import repository.movies_repository as movies_repo
 import repository.nomination_log_repository as nomination_log_repo
 from models.movie import Movie, MovieStatus
 from models.nomination_log import NominationLog
-
-
-def _sync_film_log_after_complete(slug: str) -> None:
-    """Placeholder: scrape Letterboxd diaries for club members for this film, write rows to
-    FilmLog, then invalidate cache (e.g. ``infrastructure.cache.cache.clear()`` or only
-    ``film_logs``). Not implemented yet."""
-    pass
+from service.letterboxd_service import record_club_watches_after_complete
 
 
 def get_all_movies() -> list[Movie]:
@@ -108,9 +102,13 @@ def toggle_selection(slug: str) -> Movie:
 
 
 def complete_movie(slug: str) -> Movie:
-    """Mark the selected movie as watched, log nomination history, and reset
-    other nominated movies back to backlog. ROTW and meeting details belong on
-    the Meetings sheet (can be set before or after this)."""
+    """Finish the current club film.
+
+    - Marks the selected movie as watched.
+    - Logs nominations (completed film + any still-nominated films) to NominationLog.
+    - Resets other nominated movies to backlog.
+    - Records member watches from Letterboxd RSS into FilmLog.
+    """
     movie = get_movie_by_slug(slug)
     if movie.status != MovieStatus.SELECTED:
         raise HTTPException(status_code=400, detail=f"Movie must be selected to complete (current: {movie.status.value})")
@@ -145,7 +143,7 @@ def complete_movie(slug: str) -> Movie:
             ))
         movies_repo.update_movie_fields(nominated_movie.slug, status=MovieStatus.BACKLOG.value, nominated_by="", voted_by="")
 
-    _sync_film_log_after_complete(slug)
+    record_club_watches_after_complete(slug, completed_on=date.today())
 
     return get_movie_by_slug(slug)
 

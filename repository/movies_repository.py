@@ -1,3 +1,5 @@
+from datetime import date
+
 """
 Repository for the Movies sheet.
 
@@ -37,6 +39,23 @@ def get_all_movies() -> list[Movie]:
 
 def get_movies_by_status(status: MovieStatus) -> list[Movie]:
     return [m for m in get_all_movies() if m.status == status]
+
+
+def get_latest_watched_date(exclude_slug: str | None = None) -> date | None:
+    """Return the most recent ``watched_date`` among watched movies, or None.
+
+    Use ``exclude_slug`` to ignore the film being completed right now.
+    """
+    from infrastructure.dates import parse_date
+
+    watched_dates = []
+    for movie in get_movies_by_status(MovieStatus.WATCHED):
+        if exclude_slug and movie.slug == exclude_slug:
+            continue
+        parsed = parse_date(movie.watched_date)
+        if parsed:
+            watched_dates.append(parsed)
+    return max(watched_dates) if watched_dates else None
 
 
 def get_movie_by_slug(slug: str) -> Movie | None:
