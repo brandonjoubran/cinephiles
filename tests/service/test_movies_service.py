@@ -69,11 +69,9 @@ def test_toggle_nomination_from_backlog():
         patch("service.movies_service.movies_repo.get_movie_by_slug", side_effect=[movie, nominated]),
         patch("service.movies_service.movies_repo.get_movies_by_status", return_value=[]),
         patch("service.movies_service.movies_repo.update_movie_fields") as mock_update,
-        patch("service.movies_service.nomination_log_repo.add_nomination") as mock_log,
     ):
         result = toggle_nomination("the-substance", "KingKrab")
     mock_update.assert_called_once()
-    mock_log.assert_called_once()
     assert result.status == MovieStatus.NOMINATED
 
 
@@ -205,15 +203,17 @@ def test_complete_movie_full_flow():
         patch("service.movies_service.movies_repo.update_movie_fields") as mock_update,
         patch("service.movies_service.movies_repo.get_movies_by_status", return_value=[other_nominated]),
         patch("service.movies_service.nomination_log_repo.add_nomination") as mock_nom_log,
+        patch("service.movies_service.selected_repo.add_selected") as mock_selected,
         patch("service.movies_service.record_club_watches_after_complete") as mock_sync,
     ):
         result = complete_movie("the-substance")
 
     mock_sync.assert_called_once()
+    mock_selected.assert_called_once()
 
     assert result.status == MovieStatus.WATCHED
-    # Both the completed movie and the other nominated movie should be logged
-    assert mock_nom_log.call_count == 2
+    # Only the other nominated movie is logged (not the completed selection)
+    assert mock_nom_log.call_count == 1
     # Should have updated: the completed movie + the other nominated movie reset
     assert mock_update.call_count == 2
 

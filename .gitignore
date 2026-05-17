@@ -1,4 +1,5 @@
 .env
+.cache/
 onlycinephiles-b6b986d3cb57.json
 __pycache__/
 aaa-old/

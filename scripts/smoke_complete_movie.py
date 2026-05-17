@@ -8,12 +8,16 @@ Letterboxd RSS is patched (no real HTTP) so the target user appears to have watc
 Run from repo root:
     ENV=dev .venv/bin/python scripts/smoke_complete_movie.py
 
+Step 0 clears the on-disk cache. Step 2 loads movies (writes JSON), then loads again
+and checks the cache file was not rewritten.
+
 Optional env:
     SMOKE_USER=bjoubs       # user who should gain +1 movies_watched
     SMOKE_PAUSE=2.5         # seconds between heavy sheet steps (avoid 429)
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 import time
@@ -28,6 +32,8 @@ sys.path.insert(0, str(ROOT))
 import config
 import repository.film_log_repository as film_log_repo
 import repository.movies_repository as movies_repo
+import repository.nomination_log_repository as nomination_log_repo
+import repository.selected_repository as selected_repo
 import service.stats_service as stats_service
 from fastapi.testclient import TestClient
 from infrastructure.cache import cache
@@ -52,6 +58,7 @@ PAUSE_SEC = float(os.environ.get("SMOKE_PAUSE", "2.5"))
 # One read per tab for cleanup / batch updates
 SHEET_COLUMNS = [
     ("Movies", "SLUG"),
+    ("Selected", "SLUG"),
     ("FilmLog", "SLUG"),
     ("NominationLog", "SLUG"),
     ("Meetings", "MOVIE_SLUG"),
@@ -100,6 +107,10 @@ def clear_cache() -> None:
     cache.clear()
 
 
+def cache_path() -> Path:
+    return Path(config.cache_file_path())
+
+
 def stats_for(username: str) -> dict:
     """One stats pass (reads FilmLog, Users, Movies, Meetings)."""
     clear_cache()
@@ -111,7 +122,6 @@ def stats_for(username: str) -> dict:
 
 
 def snapshot_all_movies() -> list[MovieSnapshot]:
-    clear_cache()
     pause()
     return [
         MovieSnapshot(
@@ -267,11 +277,31 @@ def run() -> None:
     client = TestClient(app)
 
     try:
+        print("0. Clear disk cache")
+        clear_cache()
+        path = cache_path()
+        print(f"     {path}")
+        if path.exists():
+            fail("cache file should be gone after clear()")
+        ok("cache empty")
+
         print("1. Cleanup leftover e2e data")
         cleanup_e2e_rows()
 
-        print("2. Snapshot real movies (restore after test)")
+        print("2. Snapshot movies (populate cache, then read from cache)")
+        pause()
         movie_snapshots = snapshot_all_movies()
+        if not path.exists():
+            fail("cache file should exist after loading movies from Sheets")
+        cached = json.loads(path.read_text(encoding="utf-8"))
+        movie_count = len(cached.get("movies", []))
+        ok(f"cache populated from Sheets ({movie_count} movies in JSON)")
+
+        saved_at = path.stat().st_mtime
+        movies_repo.get_all_movies()
+        if path.stat().st_mtime != saved_at:
+            fail("cache file was rewritten — second read should use disk, not Sheets")
+        ok("second read used disk cache (JSON file unchanged)")
 
         print("3. Prepare Movies sheet")
         modified_slugs = prepare_movies_sheet()
@@ -324,6 +354,16 @@ def run() -> None:
         ok("One selected, others still nominated")
         pause()
 
+        print("7b. Assert Selected sheet empty for e2e slugs (append only on complete)")
+        clear_cache()
+        pause()
+        e2e_selected_before = [
+            row for row in selected_repo.get_all_selected() if row.slug in FAKE_SLUG_SET
+        ]
+        if e2e_selected_before:
+            fail(f"Selected should have no e2e rows before complete, got {[r.slug for r in e2e_selected_before]}")
+        ok("No e2e rows on Selected yet")
+
         print(f"8. Complete {SELECTED_SLUG} (fake Letterboxd RSS, no HTTP)")
         with patch("service.letterboxd_service.fetch_user_films", side_effect=fake_rss_for_user):
             response = client.post(f"/movies/{SELECTED_SLUG}/complete")
@@ -334,7 +374,37 @@ def run() -> None:
         ok("Complete returned watched")
         pause()
 
-        print("9. Assert movie statuses (one sheet read)")
+        print("9. Assert NominationLog (only the 2 non-selected nominees, once each)")
+        clear_cache()
+        pause()
+        e2e_nominations = [
+            row for row in nomination_log_repo.get_all_nominations()
+            if row.slug in FAKE_SLUG_SET
+        ]
+        expected_slugs = {FAKE_SLUGS[1], FAKE_SLUGS[2]}
+        found_slugs = {row.slug for row in e2e_nominations}
+        if SELECTED_SLUG in found_slugs:
+            fail(f"NominationLog should not include completed film {SELECTED_SLUG}")
+        if found_slugs != expected_slugs:
+            fail(f"NominationLog expected slugs {expected_slugs}, got {found_slugs}")
+        if len(e2e_nominations) != 2:
+            fail(f"NominationLog expected 2 e2e rows, got {len(e2e_nominations)}: {found_slugs}")
+        ok("NominationLog has one row each for e2e-smoke-2 and e2e-smoke-3")
+
+        print("10. Assert Selected sheet has completed film (append on complete only)")
+        clear_cache()
+        pause()
+        e2e_selected = [
+            row for row in selected_repo.get_all_selected() if row.slug in FAKE_SLUG_SET
+        ]
+        if len(e2e_selected) != 1 or e2e_selected[0].slug != SELECTED_SLUG:
+            slugs = [row.slug for row in e2e_selected]
+            fail(f"Selected expected only {SELECTED_SLUG}, got {slugs}")
+        if not e2e_selected[0].watched_date.strip():
+            fail(f"Selected row for {SELECTED_SLUG} needs WATCHED_DATE")
+        ok(f"Selected sheet has {SELECTED_SLUG} with watched date {e2e_selected[0].watched_date}")
+
+        print("11. Assert movie statuses (one sheet read)")
         clear_cache()
         pause()
         by_slug = {m.slug: m for m in movies_repo.get_all_movies()}
@@ -349,7 +419,7 @@ def run() -> None:
                 fail(f"{slug} should have nomination fields cleared")
         ok("Watched + other nominees reset to backlog")
 
-        print("10. Assert FilmLog row for target user")
+        print("12. Assert FilmLog row for target user")
         clear_cache()
         pause()
         slugs_logged = {log.slug for log in film_log_repo.get_film_logs_for_user(TARGET_USER)}
@@ -357,7 +427,7 @@ def run() -> None:
             fail(f"FilmLog missing {SELECTED_SLUG} for {TARGET_USER}")
         ok(f"FilmLog contains {SELECTED_SLUG} for {TARGET_USER}")
 
-        print("11. Stats AFTER complete")
+        print("13. Stats AFTER complete")
         stats_after = stats_for(TARGET_USER)
         print(
             f"     {TARGET_USER}: movies_watched={stats_after['movies_watched']} "
@@ -383,7 +453,7 @@ def run() -> None:
         test_passed = True
 
     finally:
-        print("12. Cleanup")
+        print("14. Cleanup")
         cleanup_e2e_rows()
         if movie_snapshots and modified_slugs:
             print(f"    Restoring {len(modified_slugs)} movie row(s) changed during prepare")
