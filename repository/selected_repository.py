@@ -48,6 +48,12 @@ def get_selected_slugs() -> list[str]:
     return [film.slug for film in films]
 
 
+def get_latest_completed_slug() -> str | None:
+    """Slug of the most recently completed club film (last row on Selected by date)."""
+    slugs = get_selected_slugs()
+    return slugs[-1] if slugs else None
+
+
 def add_selected(movie: Movie, watched_date: str) -> None:
     """Append a completed club film to the Selected sheet."""
     cache.clear()

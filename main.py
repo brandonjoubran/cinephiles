@@ -4,12 +4,14 @@ from api.stats import router as stats_router
 from api.movies import router as movies_router
 from api.meetings import router as meetings_router
 from api.cache import router as cache_router
+from api.nominators import router as nominators_router
 
 app = FastAPI()
 app.include_router(users_router)
 app.include_router(stats_router)
 app.include_router(movies_router)
 app.include_router(meetings_router)
+app.include_router(nominators_router)
 app.include_router(cache_router)
 
 @app.get("/")

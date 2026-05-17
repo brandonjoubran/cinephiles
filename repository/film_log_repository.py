@@ -27,6 +27,21 @@ def get_film_logs_for_user(username: str) -> list[FilmLog]:
     return [log for log in get_all_film_logs() if log.username == username]
 
 
+def get_usernames_for_slug(slug: str) -> list[str]:
+    """Return usernames that have a FilmLog row for this film."""
+    slug = slug.strip().lower()
+    seen = set()
+    usernames = []
+    for log in get_all_film_logs():
+        if log.slug.strip().lower() != slug:
+            continue
+        key = log.username.strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            usernames.append(log.username.strip())
+    return usernames
+
+
 def save_film_log(film_log: FilmLog) -> None:
     """Insert or update the row for this username + slug pair."""
     sheet = get_worksheet("FilmLog")

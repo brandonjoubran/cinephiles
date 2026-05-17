@@ -31,3 +31,14 @@ def test_get_selected_slugs_sorted_by_watched_date():
 def test_get_selected_slugs_empty():
     with patch("repository.selected_repository.get_all_selected", return_value=[]):
         assert get_selected_slugs() == []
+
+
+def test_get_latest_completed_slug():
+    films = [
+        _film("old", "01/01/2024"),
+        _film("latest", "06/01/2025"),
+    ]
+    with patch("repository.selected_repository.get_all_selected", return_value=films):
+        from repository.selected_repository import get_latest_completed_slug
+
+        assert get_latest_completed_slug() == "latest"
