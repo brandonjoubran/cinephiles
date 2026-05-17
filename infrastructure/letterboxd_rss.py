@@ -7,10 +7,11 @@ import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
-import httpx
+import requests
+
+from infrastructure import http
 
 RSS_URL = "https://letterboxd.com/{username}/rss/"
-USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
 
 @dataclass
@@ -47,10 +48,10 @@ def _download_feed(username: str) -> str | None:
     """GET the raw RSS XML for one Letterboxd user."""
     url = RSS_URL.format(username=username)
     try:
-        response = httpx.get(url, headers={"User-Agent": USER_AGENT}, timeout=15.0)
+        response = http.get(url)
         response.raise_for_status()
         return response.text
-    except httpx.HTTPError:
+    except requests.RequestException:
         return None
 
 

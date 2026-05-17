@@ -45,16 +45,14 @@ def test_get_movie_returns_404():
 
 
 def test_add_movie_returns_200():
-    with (
-        patch("service.movies_service.movies_repo.get_movie_by_slug", return_value=None),
-        patch("service.movies_service.movies_repo.add_movie"),
+    movie = _movie(slug="heat-1995", title="Heat")
+    with patch(
+        "service.movies_service.add_movie_from_letterboxd_link",
+        return_value=movie,
     ):
         response = client.post("/movies", json={
-            "title": "Heat",
-            "slug": "heat-1995",
             "url": "https://letterboxd.com/film/heat-1995/",
             "added_by": "bjoubs",
-            "poster": "poster.jpg",
         })
     assert response.status_code == 200
     assert response.json()["slug"] == "heat-1995"
@@ -62,13 +60,15 @@ def test_add_movie_returns_200():
 
 
 def test_add_movie_duplicate_returns_409():
-    with patch("service.movies_service.movies_repo.get_movie_by_slug", return_value=_movie()):
+    from fastapi import HTTPException
+
+    with patch(
+        "service.movies_service.add_movie_from_letterboxd_link",
+        side_effect=HTTPException(status_code=409, detail="exists"),
+    ):
         response = client.post("/movies", json={
-            "title": "The Substance",
-            "slug": "the-substance",
-            "url": "url",
+            "url": "https://letterboxd.com/film/the-substance/",
             "added_by": "bjoubs",
-            "poster": "poster",
         })
     assert response.status_code == 409
 

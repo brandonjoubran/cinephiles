@@ -7,11 +7,8 @@ router = APIRouter()
 
 
 class AddMovieRequest(BaseModel):
-    title: str
-    slug: str
     url: str
     added_by: str
-    poster: str
 
 
 class NominateRequest(BaseModel):
@@ -39,13 +36,8 @@ def get_movie(slug: str) -> Movie:
 
 @router.post("/movies")
 def add_movie(body: AddMovieRequest) -> Movie:
-    return movies_service.add_movie(
-        title=body.title,
-        slug=body.slug,
-        url=body.url,
-        added_by=body.added_by,
-        poster=body.poster,
-    )
+    """Add a film from a Letterboxd link (boxd.it, letterboxd.com/film/..., etc.)."""
+    return movies_service.add_movie_from_letterboxd_link(body.url, body.added_by)
 
 
 @router.post("/movies/{slug}/nominate")

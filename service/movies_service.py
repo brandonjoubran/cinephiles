@@ -3,6 +3,9 @@ from fastapi import HTTPException
 import repository.movies_repository as movies_repo
 import repository.nomination_log_repository as nomination_log_repo
 import repository.selected_repository as selected_repo
+import requests
+
+from infrastructure.letterboxd_scraper import parse_letterboxd_film_url
 from models.movie import Movie, MovieStatus
 from models.nomination_log import NominationLog
 from service.letterboxd_service import record_club_watches_after_complete
@@ -21,6 +24,18 @@ def get_movie_by_slug(slug: str) -> Movie:
     if not movie:
         raise HTTPException(status_code=404, detail=f"Movie '{slug}' not found")
     return movie
+
+
+def add_movie_from_letterboxd_link(link: str, added_by: str) -> Movie:
+    """Parse a Letterboxd URL (short or long) and add the film to the backlog."""
+    try:
+        parsed = parse_letterboxd_film_url(link)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail=f"Could not fetch Letterboxd page: {exc}") from exc
+
+    return add_movie(parsed.title, parsed.slug, parsed.url, added_by, parsed.poster)
 
 
 def add_movie(title: str, slug: str, url: str, added_by: str, poster: str) -> Movie:

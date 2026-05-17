@@ -38,6 +38,7 @@ import service.stats_service as stats_service
 from fastapi.testclient import TestClient
 from infrastructure.cache import cache
 from infrastructure.letterboxd_rss import LetterboxdFilm
+from models.parsed_letterboxd_movie import ParsedLetterboxdMovie
 from infrastructure.sheet_rows import _col_letter, serialize_field_value
 from main import app
 from models.movie import MovieStatus
@@ -311,28 +312,35 @@ def run() -> None:
         stats_before = stats_for(TARGET_USER)
         print(f"     {TARGET_USER}: movies_watched={stats_before['movies_watched']}, streak={stats_before['streak']}")
 
-        print("5. Add 3 fake movies via API")
-        for slug in FAKE_SLUGS:
-            response = client.post(
-                "/movies",
-                json={
-                    "title": f"E2E Test {slug}",
-                    "slug": slug,
-                    "url": f"https://letterboxd.com/film/{slug}/",
-                    "added_by": NOMINATOR,
-                    "poster": "https://example.com/poster.jpg",
-                },
+        print("5. Add 3 fake movies via API (Letterboxd link → parse → add)")
+        def fake_parse(link: str) -> ParsedLetterboxdMovie:
+            slug = link.rstrip("/").split("/")[-1]
+            return ParsedLetterboxdMovie(
+                title=f"E2E Test {slug}",
+                slug=slug,
+                url=f"https://letterboxd.com/film/{slug}/",
+                poster="https://example.com/poster.jpg",
             )
-            if response.status_code not in (200, 409):
-                fail(f"POST /movies {slug}: {response.status_code} {response.text}")
-            if response.status_code == 200:
-                assert_status(response.json(), "backlog", slug)
-            else:
-                clear_cache()
-                existing = movies_repo.get_movie_by_slug(slug)
-                if not existing or existing.status != MovieStatus.BACKLOG:
-                    fail(f"{slug} should be backlog when reusing existing row")
-            pause()
+
+        with patch("service.movies_service.parse_letterboxd_film_url", side_effect=fake_parse):
+            for slug in FAKE_SLUGS:
+                response = client.post(
+                    "/movies",
+                    json={
+                        "url": f"https://letterboxd.com/film/{slug}/",
+                        "added_by": NOMINATOR,
+                    },
+                )
+                if response.status_code not in (200, 409):
+                    fail(f"POST /movies {slug}: {response.status_code} {response.text}")
+                if response.status_code == 200:
+                    assert_status(response.json(), "backlog", slug)
+                else:
+                    clear_cache()
+                    existing = movies_repo.get_movie_by_slug(slug)
+                    if not existing or existing.status != MovieStatus.BACKLOG:
+                        fail(f"{slug} should be backlog when reusing existing row")
+                pause()
         ok("Three movies on backlog")
 
         print("6. Nominate all 3 fake movies")
