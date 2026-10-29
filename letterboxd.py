@@ -1067,6 +1067,16 @@ def parse_time(t):
     except Exception:
         return None
 
+def meeting_sort_date(meeting):
+    """DATE is stored as MM/DD/YYYY. Sorting that string groups meetings by month."""
+    raw = str(meeting.get("DATE") or "").strip()
+    for fmt in ("%m/%d/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw, fmt)
+        except ValueError:
+            continue
+    return datetime.min
+
 def get_poster(movie_title, release_year):
     # Your TMDb API key
     #API_KEY = os.getenv('API_KEY')
@@ -1931,7 +1941,7 @@ def meetings():
     print("🔄 Loading meetings page")
     meetings_records = get_meetings_records()
     print(f"📅 Loaded {len(meetings_records)} meetings from sheet")
-    meetings_records.sort(key=lambda m: m.get("DATE", ""), reverse=False)
+    meetings_records.sort(key=meeting_sort_date, reverse=True)
     selected_movies = get_selected_records()
     print(f"🎬 Loaded {len(selected_movies)} movies from Selected sheet")
     user_sheet = get_users_sheet()
