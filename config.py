@@ -11,8 +11,19 @@ TMDB_API_READ_TOKEN = os.getenv("API_READ_TOKEN", "")
 
 
 def tab(name: str) -> str:
-    """Return the real tab name. In dev, all tabs are prefixed with TEST-."""
-    return f"TEST-{name}" if ENV == "dev" else name
+    """Return the real tab name for this process.
+
+    ENV=dev reads TEST-Movies. ENV=prod reads PROD-Movies.
+    Unprefixed tabs (Watchlist, Users, …) are the old live sheets and are never used.
+    """
+    if ENV == "dev":
+        return f"TEST-{name}"
+    if ENV == "prod":
+        return f"PROD-{name}"
+    raise RuntimeError(
+        f"ENV must be 'dev' or 'prod' (got {ENV!r}). "
+        "Refusing to open the unprefixed live tabs."
+    )
 
 
 # Folder for on-disk sheet cache (see infrastructure/cache.py). Override in .env if needed.
@@ -24,7 +35,7 @@ def cache_file_path() -> str:
 
     Example: ``.cache/dev__OnlyCinephilesDB_Dev.json``
 
-    Uses ``ENV`` and ``SPREADSHEET_NAME`` so dev TEST tabs and prod tabs never
+    Uses ``ENV`` and ``SPREADSHEET_NAME`` so TEST tabs and PROD tabs never
     share the same cache file.
     """
     safe_name = SPREADSHEET_NAME.replace("/", "_").replace(" ", "_")

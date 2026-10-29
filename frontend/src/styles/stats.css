@@ -1,0 +1,242 @@
+/* Stats page — same look as the web-branch index template. Scoped so it does not restyle other pages. */
+
+.stats-root {
+  font-family: "Inter", sans-serif;
+  background-color: #f2f4f8;
+  color: #333;
+  padding: 20px;
+  min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.stats-root *,
+.stats-root *::before,
+.stats-root *::after {
+  box-sizing: border-box;
+}
+
+.stats-root h2 {
+  text-align: center;
+  color: #222;
+  margin-top: 40px;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.stats-root .container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 30px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+}
+
+.stats-logo {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.stats-logo img {
+  width: 320px;
+  max-width: 90%;
+  height: auto;
+}
+
+.stats-root .summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+.stats-root .summary-card {
+  background: #fafafa;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.stats-root .summary-card:hover {
+  transform: translateY(-3px);
+}
+
+.stats-root .summary-card strong {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #222;
+}
+
+.stats-root .highlight {
+  background: #e0f7fa;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.stats-root .streak {
+  font-size: 0.9em;
+  opacity: 0.9;
+  font-family: inherit;
+  color: inherit;
+}
+
+.stats-root .summary-card div {
+  line-height: 1.6;
+}
+
+.stats-root .summary-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stats-root .summary-card a {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.stats-root p {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1rem;
+}
+
+.stats-root .container > p a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.stats-root .container > p a:hover {
+  text-decoration: underline;
+}
+
+.stats-root .refresh-btn {
+  margin-top: 6px;
+  align-self: flex-start;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  background-color: #e0f7fa;
+  border: 1px solid #b2ebf2;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #333;
+  font-family: inherit;
+}
+
+.stats-root footer {
+  text-align: center;
+  margin-top: 40px;
+  padding: 15px 0;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.stats-root .navbar {
+  width: 100%;
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(241, 18, 18, 0.05);
+  padding: 12px 20px;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.stats-root .nav-container {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.stats-root .nav-item {
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: #555;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s, color 0.2s;
+  border-bottom: none;
+  height: auto;
+  line-height: normal;
+}
+
+.stats-root .nav-item:hover {
+  background-color: #f0f0f0;
+  color: #000;
+}
+
+.stats-root .nav-item.active {
+  background-color: #007bff;
+  color: white;
+}
+
+@media (max-width: 600px) {
+  .stats-root .navbar {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 30px;
+    background: none;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .stats-root .nav-item {
+    font-weight: 600;
+    color: #333;
+    text-decoration: none;
+  }
+
+  .stats-root .nav-container {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+  }
+
+  .stats-root .nav-item:hover {
+    background-color: #f0f0f0;
+    color: #000;
+  }
+
+  .stats-root .nav-item.active {
+    background-color: transparent;
+    color: #333;
+    text-decoration: underline;
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-root {
+    padding: 10px;
+  }
+
+  .stats-root .container {
+    padding: 20px;
+  }
+
+  .stats-root h2 {
+    font-size: 1.3rem;
+  }
+
+  .stats-root p {
+    font-size: 0.95rem;
+  }
+
+  .stats-root .summary-card {
+    padding: 16px;
+  }
+
+  .stats-root .summary-grid {
+    gap: 16px;
+  }
+}

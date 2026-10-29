@@ -1,11 +1,13 @@
 from datetime import date
 from fastapi import HTTPException
+import repository.meetings_repository as meetings_repo
 import repository.movies_repository as movies_repo
 import repository.nomination_log_repository as nomination_log_repo
 import repository.selected_repository as selected_repo
 import requests
 
 from infrastructure.letterboxd_scraper import parse_letterboxd_film_url
+from models.meeting import Meeting
 from models.movie import Movie, MovieStatus
 from models.nomination_log import NominationLog
 from service.letterboxd_service import record_club_watches_after_complete
@@ -109,7 +111,45 @@ def toggle_selection(slug: str) -> Movie:
     return get_movie_by_slug(slug)
 
 
-def complete_movie(slug: str) -> Movie:
+def mark_watched(slug: str) -> Movie:
+    """Mark a non-selected film as watched (personal watch, not club complete)."""
+    movie = get_movie_by_slug(slug)
+    if movie.status == MovieStatus.SELECTED:
+        raise HTTPException(
+            status_code=400,
+            detail="Use complete for the selected club film",
+        )
+    if movie.status == MovieStatus.WATCHED:
+        return movie
+
+    today = date.today().strftime("%m/%d/%Y")
+    movies_repo.update_movie_fields(
+        slug,
+        status=MovieStatus.WATCHED.value,
+        watched_date=today,
+        nominated_by="",
+        voted_by="",
+    )
+    return get_movie_by_slug(slug)
+
+
+def mark_unwatched(slug: str) -> Movie:
+    """Revert a watched film back to backlog."""
+    movie = get_movie_by_slug(slug)
+    if movie.status != MovieStatus.WATCHED:
+        raise HTTPException(status_code=400, detail=f"Movie is not watched (current: {movie.status.value})")
+
+    movies_repo.update_movie_fields(
+        slug,
+        status=MovieStatus.BACKLOG.value,
+        watched_date="",
+        nominated_by="",
+        voted_by="",
+    )
+    return get_movie_by_slug(slug)
+
+
+def complete_movie(slug: str, rotw: list[str] | None = None) -> Movie:
     """Finish the current club film.
 
     - Appends the completed film to the Selected sheet.
@@ -144,7 +184,31 @@ def complete_movie(slug: str) -> Movie:
 
     record_club_watches_after_complete(slug, completed_on=date.today())
 
+    if rotw:
+        _apply_rotw_to_meeting(slug, rotw)
+
     return get_movie_by_slug(slug)
+
+
+def _apply_rotw_to_meeting(movie_slug: str, rotw: list[str]) -> None:
+    """Store Review of the Week winners on the Meetings row for this film."""
+    names = [name.strip() for name in rotw if name.strip()]
+    if not names:
+        return
+    meetings = meetings_repo.get_all_meetings()
+    if any(m.movie_slug == movie_slug for m in meetings):
+        meetings_repo.update_meeting(movie_slug, rotw=names)
+        return
+    movie = get_movie_by_slug(movie_slug)
+    meetings_repo.add_meeting(Meeting(
+        date=date.today().strftime("%m/%d/%Y"),
+        movie_name=movie.title,
+        movie_slug=movie_slug,
+        start_time="",
+        end_time="",
+        participants=[],
+        rotw=names,
+    ))
 
 
 def delete_movie(slug: str):

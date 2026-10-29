@@ -14,6 +14,21 @@ from infrastructure.letterboxd_rss import LetterboxdFilm, fetch_user_films
 from models.film_log import FilmLog
 
 
+def refresh_user_film_logs(username: str) -> int:
+    """Re-fetch RSS for all club films and update FilmLog for one member (stats refresh button)."""
+    from repository.selected_repository import get_selected_slugs
+
+    slugs = get_selected_slugs()
+    if not slugs:
+        return 0
+    films = fetch_user_films(username, slugs=slugs)
+    saved = 0
+    for film in films.values():
+        film_log_repo.save_film_log(_to_film_log(username, film, date.today()))
+        saved += 1
+    return saved
+
+
 def record_club_watches_after_complete(movie_slug: str, completed_on: date | None = None) -> int:
     """Pull Letterboxd RSS for each member and save watches that count for this cycle."""
     cycle_end = completed_on or date.today()

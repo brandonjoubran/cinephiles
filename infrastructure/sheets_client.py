@@ -26,5 +26,5 @@ def _get_spreadsheet():
 
 
 def get_worksheet(name: str):
-    """Return a gspread Worksheet. In dev, automatically uses TEST- prefixed tabs."""
+    """Return a gspread Worksheet. Dev uses TEST- tabs; prod uses PROD- tabs."""
     return _get_spreadsheet().worksheet(tab(name))

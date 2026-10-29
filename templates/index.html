@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OnlyCinephiles — Stats</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;1,400;1,600&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f5f0;
+      --surface: #fff;
+      --border: #e5e2d9;
+      --text: #1a1917;
+      --muted: #928f88;
+      --subtle: #f0ede6;
+      --accent: #c8522a;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 50px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .nav-brand {
+      font-family: 'Fraunces', serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-links { display: flex; list-style: none; }
+    .nav-links a {
+      display: block; height: 50px; line-height: 50px;
+      padding: 0 1rem; font-size: 0.8rem; color: var(--muted);
+      text-decoration: none; border-bottom: 2px solid transparent;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--text); border-bottom-color: var(--accent); }
+
+    .page { max-width: 900px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+
+    .hero { margin-bottom: 2.75rem; }
+    .hero h1 {
+      font-family: 'Fraunces', serif;
+      font-size: 2.5rem;
+      font-weight: 600;
+      font-style: italic;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.35rem;
+    }
+    .hero-sub {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .hero-sub span { color: var(--accent); font-weight: 500; }
+
+    .label {
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.65rem;
+    }
+
+    .members { margin-bottom: 3.5rem; }
+
+    .member-header {
+      display: grid;
+      grid-template-columns: 1fr 90px 52px 52px 68px 64px 28px;
+      gap: 0.5rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid var(--text);
+    }
+    .col-head {
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: right;
+    }
+    .col-head:first-child { text-align: left; }
+
+    .member-row {
+      display: grid;
+      grid-template-columns: 1fr 90px 52px 52px 68px 64px 28px;
+      align-items: center;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      gap: 0.5rem;
+      border-radius: 2px;
+      position: relative;
+    }
+    .member-row:hover { background: var(--subtle); }
+
+    .member-row__link {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+    .member-row__link:hover + .member-name,
+    .member-row:hover .member-name { color: var(--text); }
+    .member-row > * { position: relative; z-index: 1; }
+    .member-row__refresh { z-index: 2; }
+
+    .member-name {
+      font-weight: 500;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .rank {
+      font-family: 'Fraunces', serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent);
+      width: 14px;
+      flex-shrink: 0;
+    }
+    .rank.rank--muted { color: var(--muted); opacity: 0.7; }
+    .streak {
+      font-size: 0.65rem;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .col-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      text-align: right;
+      color: var(--text);
+    }
+
+    .progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .progress-wrap .col-val { min-width: 30px; }
+    .bar-bg {
+      flex: 1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: var(--text);
+      border-radius: 2px;
+    }
+    .bar-fill.full { background: var(--accent); }
+
+    .trophies { font-size: 0.72rem; text-align: right; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .trophies.has { color: var(--text); }
+
+    .refresh-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 0.8rem; padding: 0;
+      transition: color 0.15s; text-align: right; line-height: 1;
+    }
+    .refresh-btn:hover { color: var(--accent); }
+
+    .highlights { margin-bottom: 3.5rem; }
+    .highlight-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .highlight-box {
+      background: var(--surface);
+      padding: 1.1rem 1.2rem;
+    }
+    .highlight-box-label {
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .highlight-box-title {
+      font-family: 'Fraunces', serif;
+      font-size: 1rem;
+      font-style: italic;
+      font-weight: 400;
+      line-height: 1.2;
+      margin-bottom: 0.2rem;
+    }
+    .highlight-box-detail {
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .reviews {}
+    .review-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.65rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .review-row:first-of-type { border-top: 1px solid var(--border); }
+    .review-kind {
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      min-width: 70px;
+    }
+    .review-film {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 0.95rem;
+      flex: 1;
+    }
+    .review-by { font-size: 0.75rem; color: var(--muted); }
+    .review-link {
+      font-size: 0.72rem; color: var(--muted);
+      text-decoration: none; white-space: nowrap;
+      transition: color 0.15s;
+    }
+    .review-link:hover { color: var(--accent); }
+
+    footer {
+      margin-top: 3.5rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 720px) {
+      .member-header,
+      .member-row {
+        grid-template-columns: 1fr 1fr 52px 52px 28px;
+        gap: 0.35rem;
+      }
+      .member-header .col-head:nth-child(n+5),
+      .member-row .col-val:nth-of-type(3),
+      .member-row .trophies { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="{{ url_for('index') }}" class="nav-brand">OnlyCinephiles</a>
+  <ul class="nav-links">
+    <li><a href="{{ url_for('index') }}" class="active">Stats</a></li>
+    <li><a href="{{ url_for('watchlist') }}">Watchlist</a></li>
+    <li><a href="{{ url_for('meetings') }}">Meetings</a></li>
+    <li><a href="{{ url_for('leaderboard') }}">Leaderboard</a></li>
+  </ul>
+</nav>
+
+<div class="page">
+
+  <div class="hero">
+    <h1>Season Stats</h1>
+    <p class="hero-sub"><span>{{ total_films }} films</span> watched · {{ member_count }} members · {{ season_year }}</p>
+  </div>
+
+  <div class="members">
+    <div class="label">Members</div>
+    <div class="member-header">
+      <div class="col-head">Member</div>
+      <div class="col-head">Watched</div>
+      <div class="col-head">Rating</div>
+      <div class="col-head">Reviews</div>
+      <div class="col-head">Avg words</div>
+      <div class="col-head">ROTW</div>
+      <div class="col-head"></div>
+    </div>
+
+    {% for user in summary %}
+    <div class="member-row">
+      <a href="https://letterboxd.com/{{ user.username }}/tag/onlycinephiles/films/" target="_blank" rel="noopener" class="member-row__link"></a>
+      <div class="member-name">
+        <span class="rank {% if loop.index > 3 %}rank--muted{% endif %}">{% if loop.index <= 3 %}{{ loop.index }}{% else %}—{% endif %}</span>
+        {{ user.username }}
+        {% if user.streak %}<span class="streak">🔥{{ user.streak }}</span>{% endif %}
+      </div>
+      <div class="progress-wrap">
+        <div class="bar-bg"><div class="bar-fill {% if user.percentage >= 100 %}full{% endif %}" style="width:{{ user.percentage }}%"></div></div>
+        <span class="col-val">{{ user.percentage }}%</span>
+      </div>
+      <div class="col-val">{{ "%.2f"|format(user.avg_rating) }}</div>
+      <div class="col-val">{{ user.reviews }}</div>
+      <div class="col-val">{{ user.avg_words }}</div>
+      <div class="trophies {% if user.rotw_count %}has{% endif %}">{% if user.rotw_count %}🏆 ×{{ user.rotw_count }}{% else %}—{% endif %}</div>
+      <form action="{{ url_for('refresh_user', username=user.username) }}" method="post" class="member-row__refresh">
+        <button type="submit" class="refresh-btn" aria-label="Refresh">↻</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="highlights">
+    <div class="label">Club highlights</div>
+    <div class="highlight-grid">
+      <div class="highlight-box">
+        <div class="highlight-box-label">Most divisive</div>
+        <div class="highlight-box-title">{{ most_divisive[0] if most_divisive else '—' }}</div>
+        <div class="highlight-box-detail">{% if most_divisive_stddev is defined and most_divisive_stddev %}σ = {{ most_divisive_stddev }}{% else %}—{% endif %}</div>
+      </div>
+      <div class="highlight-box">
+        <div class="highlight-box-label">Most liked</div>
+        <div class="highlight-box-title">{{ most_liked[0] if most_liked else '—' }}</div>
+        <div class="highlight-box-detail">{% if most_liked and most_liked[1] %}{{ "%.2f"|format(most_liked[1]) }} avg ★{% else %}—{% endif %}</div>
+      </div>
+      <div class="highlight-box">
+        <div class="highlight-box-label">Least liked</div>
+        <div class="highlight-box-title">{{ least_liked[0] if least_liked else '—' }}</div>
+        <div class="highlight-box-detail">{% if least_liked and least_liked[1] %}{{ "%.2f"|format(least_liked[1]) }} avg ★{% else %}—{% endif %}</div>
+      </div>
+      <div class="highlight-box">
+        <div class="highlight-box-label">Longest review</div>
+        <div class="highlight-box-title">{{ longest_review.title or '—' }}</div>
+        <div class="highlight-box-detail">{% if longest_review.words %}{{ longest_review.words }} words · {{ longest_review.user }}{% else %}—{% endif %}</div>
+      </div>
+      <div class="highlight-box">
+        <div class="highlight-box-label">Shortest review</div>
+        <div class="highlight-box-title">{{ shortest_review.title or '—' }}</div>
+        <div class="highlight-box-detail">{% if shortest_review.user %}{{ shortest_review.words }} word{% if shortest_review.words != 1 %}s{% endif %} · {{ shortest_review.user }}{% else %}—{% endif %}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reviews">
+    <div class="label">Notable reviews</div>
+    {% if longest_review and longest_review.url %}
+    <div class="review-row">
+      <span class="review-kind">Longest</span>
+      <span class="review-film">{{ longest_review.title or '—' }}</span>
+      <span class="review-by">{{ longest_review.words }} words by {{ longest_review.user }}</span>
+      <a class="review-link" href="{{ longest_review.url }}" target="_blank" rel="noopener">View on Letterboxd →</a>
+    </div>
+    {% endif %}
+    {% if shortest_review and shortest_review.url and shortest_review.user %}
+    <div class="review-row">
+      <span class="review-kind">Shortest</span>
+      <span class="review-film">{{ shortest_review.title or '—' }}</span>
+      <span class="review-by">{{ shortest_review.words }} word{% if shortest_review.words != 1 %}s{% endif %} by {{ shortest_review.user }}</span>
+      <a class="review-link" href="{{ shortest_review.url }}" target="_blank" rel="noopener">View on Letterboxd →</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <footer>© {{ season_year }} OnlyCinephiles · Stats by Brandon Joubran</footer>
+
+</div>
+</body>
+</html>

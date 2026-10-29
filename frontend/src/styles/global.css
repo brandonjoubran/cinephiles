@@ -1,0 +1,32 @@
+/* Shared across every page — do not put page-specific rules here */
+
+:root {
+  --bg: #f7f5f0;
+  --surface: #fff;
+  --border: #e5e2d9;
+  --text: #1a1917;
+  --muted: #928f88;
+  --subtle: #f0ede6;
+  --accent: #c8522a;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.page-loading,
+.page-error {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  color: var(--muted);
+}
+
+.page-error {
+  color: #b00020;
+}

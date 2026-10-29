@@ -19,6 +19,10 @@ class VoteRequest(BaseModel):
     username: str
 
 
+class CompleteMovieRequest(BaseModel):
+    rotw: list[str] = []
+
+
 @router.get("/movies")
 def list_movies() -> list[Movie]:
     return movies_service.get_all_movies()
@@ -56,8 +60,19 @@ def select_movie(slug: str) -> Movie:
 
 
 @router.post("/movies/{slug}/complete")
-def complete_movie(slug: str) -> Movie:
-    return movies_service.complete_movie(slug)
+def complete_movie(slug: str, body: CompleteMovieRequest | None = None) -> Movie:
+    rotw = body.rotw if body and body.rotw else None
+    return movies_service.complete_movie(slug, rotw=rotw)
+
+
+@router.post("/movies/{slug}/mark-watched")
+def mark_watched(slug: str) -> Movie:
+    return movies_service.mark_watched(slug)
+
+
+@router.post("/movies/{slug}/mark-unwatched")
+def mark_unwatched(slug: str) -> Movie:
+    return movies_service.mark_unwatched(slug)
 
 
 @router.delete("/movies/{slug}")
